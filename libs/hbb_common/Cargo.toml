@@ -9,6 +9,8 @@ edition = "2018"
 [features]
 default = []
 webrtc = ["dep:webrtc"]
+native-tls = ["dep:tokio-native-tls", "tokio-tungstenite/native-tls", "tungstenite/native-tls"]
+webrtc = ["dep:webrtc"]
 
 [dependencies]
 # new flexi_logger failed on rustc 1.75
@@ -52,12 +54,13 @@ url = "2.5"
 sha2 = "0.10"
 whoami = "1.5"
 
+tokio-native-tls = { version = "0.3", optional = true }
 tokio-rustls = { version = "0.26", features = [
     "logging",
     "tls12",
     "ring",
 ], default-features = false }
-tokio-tungstenite = { version = "0.26", default-features = false, features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.26", default-features = false, features = ["connect", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
 tungstenite = { version = "0.26", default-features = false, features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
 rustls-platform-verifier = "0.6"
 rustls-pki-types = "1.11"
