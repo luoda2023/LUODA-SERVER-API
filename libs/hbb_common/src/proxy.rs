@@ -588,19 +588,30 @@ impl Proxy {
                         origin_danger_accept_invalid_cert,
                     )
                     .await?
-                } else if !is_tls_type_cached && cfg!(feature = "native-tls") {
-                    log::warn!("Falling back to native-tls for HTTPS proxy server.");
-                    self.https_connect_nativetls_wrap_danger(
-                        &url,
-                        local,
-                        proxy,
-                        &target_addr,
-                        origin_danger_accept_invalid_cert,
-                    )
-                    .await?
+                } else if !is_tls_type_cached {
+                    #[cfg(feature = "native-tls")]
+                    {
+                        log::warn!("Falling back to native-tls for HTTPS proxy server.");
+                        self.https_connect_nativetls_wrap_danger(
+                            &url,
+                            local,
+                            proxy,
+                            &target_addr,
+                            origin_danger_accept_invalid_cert,
+                        )
+                        .await?
+                    }
+                    #[cfg(not(feature = "native-tls"))]
+                    {
+                        log::error!(
+                            "Failed to connect to HTTPS proxy server: {:?}.",
+                            e
+                        );
+                        bail!(e)
+                    }
                 } else {
                     log::error!(
-                        "Failed to connect to HTTPS proxy server with native-tls: {:?}.",
+                        "Failed to connect to HTTPS proxy server: {:?}.",
                         e
                     );
                     bail!(e)
