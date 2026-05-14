@@ -1,0 +1,20 @@
+﻿# Rust
+target/
+*.rs.bk
+Cargo.lock
+
+# 构建产物
+build/
+
+# 密钥
+data/
+*.pem
+*.key
+*.pfx
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

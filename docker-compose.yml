@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  hbbs:
+    container_name: LUODA-hbbs
+    image: ghcr.io/luoda2023/lUoda-server:latest
+    command: hbbs -r rev.dicad.cn
+    volumes:
+      - ./data:/root
+    network_mode: "host"
+    restart: unless-stopped
+
+  hbbr:
+    container_name: LUODA-hbbr
+    image: ghcr.io/luoda2023/lUoda-server:latest
+    command: hbbr
+    volumes:
+      - ./data:/root
+    network_mode: "host"
+    restart: unless-stopped
