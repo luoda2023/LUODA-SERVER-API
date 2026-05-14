@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: luoda2023/luoda-server
 
 jobs:
   # ─── 并行编译各架构 Rust 二进制并推送架构镜像 ───
