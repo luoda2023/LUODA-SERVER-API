@@ -38,7 +38,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools
+          sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -51,6 +51,8 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Build Rust binaries
+        env:
+          CC_aarch64_unknown_linux_musl: aarch64-linux-gnu-gcc
         run: |
           cargo build --release --target ${{ matrix.target }}
           mkdir -p build
