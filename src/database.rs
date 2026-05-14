@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use hbb_common::{log, ResultType};
 use sqlx::{
-    sqlite::SqliteConnectOptions, ConnectOptions, Connection, Error as SqlxError, SqliteConnection,
+    sqlite::{SqliteConnectOptions, SqliteRow},
+    ConnectOptions, Connection, Error as SqlxError, Row, SqliteConnection,
 };
 use std::{ops::DerefMut, str::FromStr};
 //use sqlx::postgres::PgPoolOptions;
@@ -46,6 +47,20 @@ pub struct Peer {
     pub status: Option<i64>,
 }
 
+impl<'r> sqlx::FromRow<'r, SqliteRow> for Peer {
+    fn from_row(row: &'r SqliteRow) -> Result<Self, SqlxError> {
+        Ok(Peer {
+            guid: row.try_get("guid")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            pk: row.try_get("pk")?,
+            user: row.try_get("user")?,
+            info: row.try_get("info")?,
+            status: row.try_get("status")?,
+        })
+    }
+}
+
 impl Database {
     pub async fn new(url: &str) -> ResultType<Database> {
         if !std::path::Path::new(url).exists() {
@@ -69,7 +84,7 @@ impl Database {
     }
 
     async fn create_tables(&self) -> ResultType<()> {
-        sqlx::query!(
+        sqlx::query(
             "
             create table if not exists peer (
                 guid blob primary key not null,
@@ -94,11 +109,10 @@ impl Database {
     }
 
     pub async fn get_peer(&self, id: &str) -> ResultType<Option<Peer>> {
-        Ok(sqlx::query_as!(
-            Peer,
-            "select guid, id, uuid, pk, user, status, info from peer where id = ?",
-            id
+        Ok(sqlx::query_as::<_, Peer>(
+            "select guid, id, uuid, pk, user, status, info from peer where id = ?"
         )
+        .bind(id)
         .fetch_optional(self.pool.get().await?.deref_mut())
         .await?)
     }
@@ -111,14 +125,14 @@ impl Database {
         info: &str,
     ) -> ResultType<Vec<u8>> {
         let guid = uuid::Uuid::new_v4().as_bytes().to_vec();
-        sqlx::query!(
-            "insert into peer(guid, id, uuid, pk, info) values(?, ?, ?, ?, ?)",
-            guid,
-            id,
-            uuid,
-            pk,
-            info
+        sqlx::query(
+            "insert into peer(guid, id, uuid, pk, info) values(?1, ?2, ?3, ?4, ?5)",
         )
+        .bind(&guid)
+        .bind(id)
+        .bind(uuid)
+        .bind(pk)
+        .bind(info)
         .execute(self.pool.get().await?.deref_mut())
         .await?;
         Ok(guid)
@@ -131,13 +145,13 @@ impl Database {
         pk: &[u8],
         info: &str,
     ) -> ResultType<()> {
-        sqlx::query!(
-            "update peer set id=?, pk=?, info=? where guid=?",
-            id,
-            pk,
-            info,
-            guid
+        sqlx::query(
+            "update peer set id=?1, pk=?2, info=?3 where guid=?4",
         )
+        .bind(id)
+        .bind(pk)
+        .bind(info)
+        .bind(guid)
         .execute(self.pool.get().await?.deref_mut())
         .await?;
         Ok(())
