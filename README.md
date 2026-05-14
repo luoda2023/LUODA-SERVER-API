@@ -6,7 +6,7 @@ LUODA 自建中继服务器，基于 rustdesk-server 源码 rebrand，由 GitHub
 
 ### 前置：拉取镜像
 
-镜像包 `ghcr.io/luoda2023/LUODA-server` 默认私有，需要先登录 GHCR：
+镜像包 `ghcr.io/luoda2023/luoda-server` 默认私有，需要先登录 GHCR：
 
 ```bash
 # 去 GitHub 创建一个 classic token，勾上 read:packages
@@ -14,7 +14,7 @@ LUODA 自建中继服务器，基于 rustdesk-server 源码 rebrand，由 GitHub
 echo "你的token" | docker login ghcr.io -u luoda2023 --password-stdin
 ```
 
-> 或者去 [GitHub Packages 页面](https://github.com/luoda2023/packages) 把 LUODA-server 包设成 Public，之后 docker pull 就不需要登录了。
+> 或者去 [GitHub Packages 页面](https://github.com/luoda2023/packages) 把 luoda-server 包设成 Public，之后 docker pull 就不需要登录了。
 
 ### 1. 获取仓库
 
@@ -61,7 +61,7 @@ docker compose up -d
 ## 📦 镜像
 
 ```bash
-docker pull ghcr.io/luoda2023/LUODA-server:latest
+docker pull ghcr.io/luoda2023/luoda-server:latest
 ```
 
 ## 🔧 手动运行（不用 docker compose）
@@ -73,14 +73,14 @@ docker run -d --name LUODA-hbbs \
   -v ./data/id_ed25519:/root/id_ed25519:ro \
   -v ./data/id_ed25519.pub:/root/id_ed25519.pub:ro \
   -v ./data:/root \
-  ghcr.io/luoda2023/LUODA-server:latest \
+  ghcr.io/luoda2023/luoda-server:latest \
   hbbs -r rev.dicad.cn
 
 # hbbr
 docker run -d --name LUODA-hbbr \
   --network host \
   -v ./data:/root \
-  ghcr.io/luoda2023/LUODA-server:latest \
+  ghcr.io/luoda2023/luoda-server:latest \
   hbbr
 ```
 
