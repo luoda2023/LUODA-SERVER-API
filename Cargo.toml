@@ -64,7 +64,7 @@ reqwest = { path = "libs/reqwest", features = ["blocking", "socks", "json", "rus
 hbb_common = { path = "libs/hbb_common" }
 
 [workspace]
-members = ["libs/hbb_common", "libs/confy", "libs/tokio-socks", "libs/sysinfo", "libs/default_net", "libs/machine-uid", "libs/reqwest"]
+members = ["libs/hbb_common"]
 exclude = ["ui"]
 
 #https://github.com/johnthagen/min-sized-rust
