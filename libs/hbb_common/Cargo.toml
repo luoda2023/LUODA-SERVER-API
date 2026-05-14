@@ -8,7 +8,6 @@ edition = "2018"
 
 [features]
 default = []
-webrtc = ["dep:webrtc"]
 native-tls = ["dep:tokio-native-tls", "tokio-tungstenite/native-tls", "tungstenite/native-tls"]
 webrtc = ["dep:webrtc"]
 
