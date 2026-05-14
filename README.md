@@ -1,33 +1,41 @@
 # LUODA-server 🖥️
 
-LUODA 自建 LUODA 中继服务器，**从源码编译**，完全不依赖官方预构建镜像。
+LUODA 自建中继服务器，基于 rustdesk-server 源码 rebrand，**从源码编译**，完全不依赖官方预构建镜像。
 
-## 🔧 构建流程
+## 架构
 
 ```
-源码 (Rust) → GitHub Actions 编译 → Docker 镜像 → ghcr.io/luoda2023/lUoda-server
+源码 (Rust) → GitHub Actions cross 交叉编译 → Docker 镜像 (amd64 + arm64) → ghcr.io/luoda2023/LUODA-server
 ```
 
 - 支持架构：`linux/amd64` `linux/arm64`
 - 首次构建：~20 分钟（Rust 编译）
 - 后续构建：~8 分钟（cargo 缓存命中）
 
-## 🚀 快速部署 (1Panel)
+## 🚀 安装
 
-### 准备密钥
+### 1. 克隆仓库
 
 ```bash
-mkdir -p data
-# 将你的 id_ed25519 和 id_ed25519.pub 放入 data/ 目录
+git clone https://github.com/luoda2023/LUODA-server.git
+cd LUODA-server
 ```
 
-### docker-compose.yml（已包含在仓库中）
+### 2. 准备密钥
+
+仓库 `data/` 目录已包含密钥文件。如果自用请替换为你的密钥：
+
+### 3. 启动服务
 
 ```bash
 docker compose up -d
 ```
 
-### 客户端配置
+服务端口：
+- hbbs：`21115`(TCP) `21116`(TCP+UDP) `21118`(TCP)
+- hbbr：`21117`(TCP) `21119`(TCP)
+
+### 4. 客户端配置
 
 | 配置项 | 值 |
 |--------|-----|
@@ -35,10 +43,28 @@ docker compose up -d
 | 中继服务器 | `rev.dicad.cn` |
 | Key | `id_ed25519.pub` 文件内容 |
 
-## 📦 镜像地址
+## 📦 镜像
 
+```bash
+docker pull ghcr.io/luoda2023/LUODA-server:latest
 ```
-ghcr.io/luoda2023/lUoda-server:latest
+
+## 🔧 手动运行（不用 docker compose）
+
+```bash
+# hbbs
+docker run -d --name LUODA-hbbs \
+  --network host \
+  -v ./data:/root \
+  ghcr.io/luoda2023/LUODA-server:latest \
+  hbbs -r rev.dicad.cn
+
+# hbbr
+docker run -d --name LUODA-hbbr \
+  --network host \
+  -v ./data:/root \
+  ghcr.io/luoda2023/LUODA-server:latest \
+  hbbr
 ```
 
 ## 🔑 环境变量
@@ -48,8 +74,19 @@ ghcr.io/luoda2023/lUoda-server:latest
 | `RELAY` | `rev.dicad.cn` | 中继服务器地址 |
 | `ENCRYPTED_ONLY` | `0` | 设为 `1` 强制加密连接 |
 
-## 🛡️ 安全提示
+## 🛡️ 安全
 
-- **不要将私钥 `id_ed25519` 提交到 Git**
-- `data/` 目录已加入 `.gitignore`
-- 建议通过 `docker secrets` 或环境变量注入密钥
+- 仓库设为 **Private**
+- 密钥通过 volume 挂载（`./data:/root`），不在镜像内
+- 如果你 fork 或公开仓库，务必删除 `data/` 中的密钥并恢复 `.gitignore`
+
+## 🏗️ 自行构建
+
+需要 cross（musl 交叉编译）：
+
+```bash
+cargo install cross
+cross build --release --target x86_64-unknown-linux-musl
+cross build --release --target aarch64-unknown-linux-musl
+docker build -t luoda-server .
+```

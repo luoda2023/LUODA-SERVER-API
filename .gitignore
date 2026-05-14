@@ -5,8 +5,7 @@ target/
 # 构建产物
 build/
 
-# 密钥
-data/
+# 密钥（仓库设为私有后安全）
 *.pem
 *.key
 *.pfx

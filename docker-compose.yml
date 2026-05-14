@@ -3,7 +3,7 @@ version: '3'
 services:
   hbbs:
     container_name: LUODA-hbbs
-    image: ghcr.io/luoda2023/lUoda-server:latest
+    image: ghcr.io/luoda2023/LUODA-server:latest
     command: hbbs -r rev.dicad.cn
     volumes:
       - ./data:/root
@@ -12,7 +12,7 @@ services:
 
   hbbr:
     container_name: LUODA-hbbr
-    image: ghcr.io/luoda2023/lUoda-server:latest
+    image: ghcr.io/luoda2023/LUODA-server:latest
     command: hbbr
     volumes:
       - ./data:/root
