@@ -14,8 +14,9 @@ if [ ! -f "/data/conf/config.yaml" ]; then
     cp /app/conf/config.yaml /data/conf/config.yaml
 fi
 
-# Ensure runtime directory exists
+# Ensure required directories exist
 mkdir -p /data/runtime
+mkdir -p /data/data
 
 # Preserve existing keys before hbbs potentially overwrites them
 if [ -f "/data/id_ed25519" ] && [ -f "/data/id_ed25519.pub" ]; then
