@@ -12,7 +12,7 @@ app:
 
 admin:
   title: "LUODA API Admin"
-  hello-file: "./conf/admin/hello.html"  #优先使用file
+  hello-file: ""  #优先使用file
   hello: ""
   # ID Server and Relay Server ports https://github.com/luoda2023/luoda-api/issues/257
   id-server-port: 21116  # ID Server port (for server cmd)
@@ -32,8 +32,8 @@ mysql:
   addr: ""
   dbname: ""
 luoda:
-  id-server: "192.168.1.66:21116"
-  relay-server: "192.168.1.66:21117"
+  id-server: "127.0.0.1:21116"
+  relay-server: "127.0.0.1:21117"
   api-server: "http://127.0.0.1:21114"
   key: ""
   key-file: "/data/id_ed25519.pub"

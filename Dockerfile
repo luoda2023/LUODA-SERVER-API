@@ -15,7 +15,12 @@ COPY build/luoda-api /usr/bin/luoda-api
 # Copy healthcheck
 COPY docker/rootfs/usr/bin/healthcheck.sh /usr/bin/healthcheck.sh
 
+# Copy API resources (i18n, web UI assets) and default config
+COPY api/resources /data/resources
+COPY api/conf /data/conf
+
 RUN chmod +x /usr/bin/hbbs /usr/bin/hbbr /usr/bin/luoda-utils /usr/bin/luoda-api /usr/bin/healthcheck.sh
+RUN mkdir -p /data/runtime
 
 # Create data volume
 VOLUME /data
