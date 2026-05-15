@@ -2,8 +2,8 @@
 
 import (
 	"fmt"
+	"github.com/glebarez/sqlite"
 	"github.com/luoda2023/luoda-api/global"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"time"
@@ -29,16 +29,13 @@ func NewSqlite(sqliteConf *SqliteConfig) *gorm.DB {
 		),
 	})
 	if err != nil {
-		fmt.Println(err)
+		panic(fmt.Sprintf("failed to open SQLite database: %v", err))
 	}
 	sqlDB, err2 := db.DB()
 	if err2 != nil {
-		fmt.Println(err2)
+		panic(fmt.Sprintf("failed to get SQLite DB handle: %v", err2))
 	}
-	// SetMaxIdleConns 设置空闲连接池中连接的最大数量
 	sqlDB.SetMaxIdleConns(sqliteConf.MaxIdleConns)
-
-	// SetMaxOpenConns 设置打开数据库连接的最大数量。
 	sqlDB.SetMaxOpenConns(sqliteConf.MaxOpenConns)
 
 	return db

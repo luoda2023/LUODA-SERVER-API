@@ -23,8 +23,8 @@ require (
 	github.com/swaggo/swag v1.16.3
 	golang.org/x/oauth2 v0.23.0
 	golang.org/x/text v0.22.0
+	github.com/glebarez/sqlite v1.11.0
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.7
 )
 
