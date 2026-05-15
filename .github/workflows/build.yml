@@ -55,6 +55,7 @@ jobs:
         run: |
           mkdir -p build
           cd api
+          go mod tidy
           go mod download
           CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o ../build/luoda-api ./cmd/apimain.go
           cd ..
