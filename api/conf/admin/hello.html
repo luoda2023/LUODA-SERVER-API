@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUODA API</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #f0f6ff 0%, #e8f0fe 50%, #dce8fa 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+            padding: 60px 40px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(43, 133, 186, 0.12);
+            max-width: 600px;
+            width: 90%;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2b85ba 0%, #1a6490 100%);
+            border-radius: 20px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            font-weight: 700;
+        }
+        h1 {
+            color: #2b85ba;
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        .welcome {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .welcome strong {
+            color: #2b85ba;
+            font-weight: 600;
+        }
+        .features {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+        }
+        .feature {
+            background: #f5f9fc;
+            border-radius: 10px;
+            padding: 16px 20px;
+            min-width: 100px;
+            text-align: center;
+            border: 1px solid #e3eff7;
+        }
+        .feature .icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+        .feature .label {
+            font-size: 13px;
+            color: #555;
+        }
+        .footer {
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+        .footer a {
+            color: #2b85ba;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .container { animation: fadeInUp 0.6s ease-out; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">L</div>
+        <h1>LUODA API</h1>
+        <p class="subtitle">企业级远程桌面管理平台</p>
+        <div class="welcome">
+            你好，<strong>{{username}}</strong>！<br>
+            欢迎使用 LUODA API 管理后台
+        </div>
+        <div class="features">
+            <div class="feature">
+                <div class="icon">🖥️</div>
+                <div class="label">设备管理</div>
+            </div>
+            <div class="feature">
+                <div class="icon">👥</div>
+                <div class="label">用户管理</div>
+            </div>
+            <div class="feature">
+                <div class="icon">📊</div>
+                <div class="label">审计日志</div>
+            </div>
+            <div class="feature">
+                <div class="icon">🌐</div>
+                <div class="label">Web 客户端</div>
+            </div>
+        </div>
+        <div class="footer">
+            LUODA API &copy; 2026 &nbsp;|&nbsp;
+            <a href="https://github.com/luoda2023/luoda-api" target="_blank">GitHub</a>
+        </div>
+    </div>
+</body>
+</html>

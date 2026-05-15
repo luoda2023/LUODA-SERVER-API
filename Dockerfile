@@ -12,15 +12,16 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
 
 COPY docker/rootfs/ /
 COPY build/hbbs build/hbbr build/luoda-utils /usr/bin/
+COPY build/luoda-api /usr/bin/
 
 LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-server"
-LABEL org.opencontainers.image.description="LUODA LUODA relay server (self-built from source)"
+LABEL org.opencontainers.image.description="LUODA relay server + API (self-built from source)"
 LABEL maintainer="LUODA"
 
 ENV RELAY=rev.dicad.cn
 ENV ENCRYPTED_ONLY=0
 
-EXPOSE 21115 21116 21116/udp 21117 21118 21119
+EXPOSE 21114 21115 21116 21116/udp 21117 21118 21119
 
 HEALTHCHECK --interval=10s --timeout=5s CMD /usr/bin/healthcheck.sh
 

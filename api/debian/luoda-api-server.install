@@ -1,0 +1,6 @@
+﻿bin/luoda-api usr/bin
+systemd/luoda-api.service lib/systemd/system
+conf var/lib/luoda-api
+data var/lib/luoda-api
+resources var/lib/luoda-api
+runtime var/lib/luoda-api

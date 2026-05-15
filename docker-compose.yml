@@ -9,6 +9,14 @@ services:
       - ./data:/root
     network_mode: "host"
     restart: unless-stopped
+    ports:
+      - "21114:21114"
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+      - "21117:21117"
+      - "21118:21118"
+      - "21119:21119"
 
   hbbr:
     container_name: LUODA-hbbr

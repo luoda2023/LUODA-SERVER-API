@@ -1,0 +1,17 @@
+﻿services:
+  luoda-api:
+    image: luoda2023/luoda-api
+    container_name: luoda-api
+    environment:
+      - TZ=Asia/Shanghai
+      - LUODA_API_LUODA_ID_SERVER=192.168.1.66:21116
+      - LUODA_API_LUODA_RELAY_SERVER=192.168.1.66:21117
+      - LUODA_API_LUODA_API_SERVER=http://127.0.0.1:21114
+      - LUODA_API_LUODA_KEY=123456789
+    ports:
+      - 21114:21114
+    volumes:
+      - ./data/LUODA/api:/app/data # database
+      # - ./conf:/app/conf # config
+      # - ./resources:/app/resources # 静态资源
+    restart: unless-stopped
