@@ -79,17 +79,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push architecture image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            S6_ARCH=${{ matrix.s6_arch }}
+      - name: Build & push Docker image (direct)
+        run: |
+          set -ex
+          echo "=== Build context debug ==="
+          echo "--- docker/rootfs ---"
+          find docker/rootfs -type f 2>&1 || echo "NO docker/rootfs"
+          echo "--- build/ ---"
+          ls -la build/ 2>&1 || echo "NO build/"
+          echo "--- Dockerfile ---"
+          cat Dockerfile
+          echo "--- Building ---"
+          docker build -t "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main" .
+          echo "--- Pushing ---"
+          docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          echo "=== DONE ==="
           provenance: false
 
   # ─── 最终镜像 tag ───
