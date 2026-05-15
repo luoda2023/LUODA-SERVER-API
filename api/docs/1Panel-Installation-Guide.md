@@ -1,4 +1,4 @@
-# LUODA API — 1Panel 详细安装指南
+﻿# LUODA API — 1Panel 详细安装指南
 
 > **文档版本：** v2.0.0 | **适用版本：** LUODA API ≥ 2.0.0 | **1Panel 要求：** ≥ v1.10
 
@@ -11,7 +11,7 @@
 3. [方式二：系统服务部署](#方式二系统服务部署)
 4. [方式三：1Panel 应用商店部署](#方式三1panel-应用商店部署)
 5. [初始化配置](#初始化配置)
-6. [配置 RustDesk 客户端](#配置-rustdesk-客户端)
+6. [配置客户端](#配置-LUODA-客户端)
 7. [常见问题排查](#常见问题排查)
 8. [升级指南](#升级指南)
 
@@ -38,12 +38,11 @@ bash quick_start.sh
 2. 点击「安装 Docker」按钮
 3. 等待安装完成
 
-### 3. 准备 RustDesk Server
+### 3. 服务器环境
 
-LUODA API 需要配合 RustDesk Server（ID 服务器 + Relay 服务器）使用。
+LUODA-SERVER-API 已内置 ID 服务器和中继服务器，无需额外部署。推荐使用一体化 Docker 部署。
 
-如果你还没有部署 RustDesk Server，参考：
-- 官方文档：https://rustdesk.com/docs/zh-cn/self-host/
+
 - 或使用 Docker 快速部署：
 
 ```bash
@@ -51,20 +50,20 @@ docker run -d \
   --name hbbs \
   --network host \
   --restart unless-stopped \
-  -v /opt/rustdesk:/root \
-  rustdesk/rustdesk-server:latest hbbs
+  -v /opt/luoda-server:/root \
+  luoda-server-api:latest hbbs
 
 docker run -d \
   --name hbbr \
   --network host \
   --restart unless-stopped \
-  -v /opt/rustdesk:/root \
-  rustdesk/rustdesk-server:latest hbbr
+  -v /opt/luoda-server:/root \
+  luoda-server-api:latest hbbr
 ```
 
 获取 Key（用于客户端连接）：
 ```bash
-cat /opt/rustdesk/id_ed25519.pub
+cat /opt/luoda-server/id_ed25519.pub
 ```
 
 ---
@@ -122,12 +121,12 @@ gorm:
   max-idle-conns: 10
   max-open-conns: 100
 
-# LUODA/RustDesk 配置（重点！）
+# LUODA 服务器配置（重点！）
 luoda:
   id-server: "你的服务器IP:21116"      # ← 修改为你的 ID 服务器地址
   relay-server: "你的服务器IP:21117"    # ← 修改为你的 Relay 服务器地址
   api-server: "http://你的服务器IP:21114"
-  key: "你的RustDesk Key"              # ← 修改为你的 Key
+  key: "你的密钥"              # ← 修改为你的 Key
   key-file: "/data/id_ed25519.pub"     # Docker 环境用这个路径
   personal: 1
 
@@ -137,7 +136,7 @@ logger:
   level: "info"
 ```
 
-> ⚠️ **必须修改**：将 `你的服务器IP` 和 `你的RustDesk Key` 替换为实际值！
+> ⚠️ **必须修改**：将 `你的服务器IP` 和 `你的密钥` 替换为实际值！
 
 ### 步骤 3：创建 Docker Compose 编排
 
@@ -283,10 +282,10 @@ systemctl status luoda-api
 
 ## 方式三：1Panel 应用商店部署
 
-如果 1Panel 应用商店中有 LUODA API（或 RustDesk API），可直接一键部署：
+如果 1Panel 应用商店中有 LUODA API，可直接一键部署：
 
 1. 进入 1Panel「应用商店」
-2. 搜索 `luoda` 或 `rustdesk`
+2. 搜索 `luoda`
 3. 找到对应应用，点击「安装」
 4. 填写参数（端口、数据目录等）
 5. 点击「确认」，等待部署完成
@@ -359,24 +358,24 @@ ldap:
 
 ---
 
-## 配置 RustDesk 客户端
+## 配置客户端
 
-部署完成后，需要配置 RustDesk 客户端连接到你的服务器：
+部署完成后，需要配置客户端连接到你的服务器：
 
 ### Windows / macOS / Linux 桌面端
 
-1. 打开 RustDesk 客户端
+1. 打开客户端
 2. 点击「设置」→「网络」
 3. 填写：
    - **ID 服务器**：`你的服务器IP`（或域名）
    - **中继服务器**：`你的服务器IP`（或域名）
    - **API 服务器**：`http://你的服务器IP:21114`
-   - **Key**：`（你的 RustDesk Key）`
+   - **Key**：`（你的密钥）`
 4. 点击「应用」
 
 ### 移动端（Android / iOS）
 
-1. 打开 RustDesk App
+1. 打开客户端 App
 2. 点击右上角「⋮」→「设置」
 3. 进入「网络设置」
 4. 填写同上
@@ -399,7 +398,7 @@ docker logs luoda-api
 
 ### 2. 无法获取地址簿 / 设备列表
 
-检查 `luoda.id-server` 和 `luoda.key` 配置是否正确，且 RustDesk Server（hbbs）正在运行。
+检查 `luoda.id-server` 和 `luoda.key` 配置是否正确，且 ID 服务器（hbbs）正在运行。
 
 ### 3. Web Client 无法连接
 
@@ -472,11 +471,11 @@ systemctl status luoda-api
 | 端口 | 协议 | 用途 | 是否必须开放 |
 |------|------|------|-------------|
 | 21114 | TCP | LUODA API 服务 | ✅ 必须 |
-| 21115 | TCP | RustDesk NAT 类型测试 | 推荐 |
-| 21116 | TCP/UDP | RustDesk ID 服务器 | ✅ 必须 |
-| 21117 | TCP | RustDesk Relay 服务器 | ✅ 必须 |
-| 21118 | TCP | RustDesk WebSocket | 推荐 |
-| 21119 | TCP | RustDesk WebClient | 推荐 |
+| 21115 | TCP | NAT 类型测试 | 推荐 |
+| 21116 | TCP/UDP | ID 服务器 | ✅ 必须 |
+| 21117 | TCP | 中继服务器 | ✅ 必须 |
+| 21118 | TCP | WebSocket | 推荐 |
+| 21119 | TCP | WebClient | 推荐 |
 
 ---
 
@@ -486,7 +485,7 @@ systemctl status luoda-api
 - 🐛 [问题反馈](https://github.com/luoda2023/luoda-api/issues)
 - 📦 [Release 下载](https://github.com/luoda2023/luoda-api/releases)
 - 🎨 [管理前端源码](https://github.com/luoda2023/luoda-api-web)
-- 🖥️ [RustDesk 官方文档](https://rustdesk.com/docs/)
+- 🖥️ [官方文档](https://github.com/luoda2023/LUODA-SERVER-API/)
 
 ---
 
