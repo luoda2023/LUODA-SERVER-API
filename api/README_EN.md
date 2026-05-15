@@ -1,6 +1,6 @@
-# LUODA API
+﻿# LUODA API
 
-> **LUODA Custom Edition** — Enterprise-grade remote desktop API management platform based on RustDesk protocol
+> **LUODA Custom Edition** — Enterprise-grade remote desktop API management platform based on remote desktop protocol
 
 <div align=center>
 <img src="https://img.shields.io/badge/golang-1.22-blue"/>
@@ -15,7 +15,7 @@
 
 ## Overview
 
-**LUODA API** is an enterprise-grade API server implementation for the RustDesk remote desktop protocol (LUODA Custom Edition). Built upon the open-source RustDesk API with comprehensive rebranding, it provides:
+**LUODA API** is an enterprise-grade API server implementation for the remote desktop protocol (LUODA Custom Edition). Built upon the open-source LUODA API with comprehensive rebranding, it provides:
 
 - 🖥️ **PC Client API** — Full RESTful interface with Personal and Enterprise editions
 - 🎛️ **Web Admin Panel** — Frontend-backend separated management interface
@@ -126,10 +126,10 @@ All config items can be set via environment variables prefixed with `LUODA_API`.
 | `LUODA_API_LANG` | Language | `en`, `zh-CN` |
 | `LUODA_API_GIN_API_ADDR` | API listen address | `0.0.0.0:21114` |
 | `LUODA_API_GORM_TYPE` | Database type | `sqlite`, `mysql` |
-| `LUODA_API_LUODA_ID_SERVER` | RustDesk ID server | `192.168.1.66:21116` |
-| `LUODA_API_LUODA_RELAY_SERVER` | RustDesk Relay server | `192.168.1.66:21117` |
+| `LUODA_API_LUODA_ID_SERVER` | ID server | `192.168.1.66:21116` |
+| `LUODA_API_LUODA_RELAY_SERVER` | relay server | `192.168.1.66:21117` |
 | `LUODA_API_LUODA_API_SERVER` | API server URL | `http://192.168.1.66:21114` |
-| `LUODA_API_LUODA_KEY` | RustDesk key | — |
+| `LUODA_API_LUODA_KEY` | key | — |
 | `LUODA_API_APP_REGISTER` | Enable registration | `false` |
 
 ---
@@ -145,8 +145,8 @@ All config items can be set via environment variables prefixed with `LUODA_API`.
 
 ## Credits
 
-- Based on the open-source [RustDesk API](https://github.com/lejianwen/rustdesk-api) project
-- Thanks to the [RustDesk](https://rustdesk.com) team for the excellent remote desktop protocol
+- Based on the open-source [LUODA API](https://github.com/luoda2023/LUODA-SERVER-API) project
+- 
 
 ---
 

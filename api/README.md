@@ -1,6 +1,6 @@
-# LUODA API
+﻿# LUODA API
 
-> **LUODA 定制版** — 基于 RustDesk 协议的企业级远程桌面 API 管理平台
+> **LUODA 定制版** — 基于 企业级远程桌面 API 管理平台
 
 <div align=center>
 <img src="https://img.shields.io/badge/golang-1.22-blue"/>
@@ -15,7 +15,7 @@
 
 ## 项目简介
 
-**LUODA API** 是 RustDesk 远程桌面协议的企业级 API 服务端实现（LUODA 定制版）。本项目在开源 RustDesk API 基础上进行了全面的品牌化重构，提供了：
+**LUODA API** 是 远程桌面协议的企业级 API 服务端实现（LUODA 定制版）。完全独立构建，进行了全面的品牌化重构，提供了：
 
 - 🖥️ **PC 端 API** — 完整的 RESTful 接口，支持个人版和企业版
 - 🎛️ **Web 管理后台** — 前后端分离的管理界面，用户/设备/群组全方位管理
@@ -100,7 +100,7 @@
 
 - 已安装 [1Panel](https://1panel.cn/docs/installation/online_installation/)（要求 1Panel ≥ v1.10）
 - 服务器已安装 Docker 和 Docker Compose
-- 一个可用的 RustDesk Server（ID 服务器 + Relay 服务器）
+- 一个可用的 中继服务器（ID + Relay）
 
 #### 步骤 1：创建部署目录
 
@@ -146,7 +146,7 @@ luoda:
   id-server: "你的服务器IP:21116"
   relay-server: "你的服务器IP:21117"
   api-server: "http://你的服务器IP:21114"
-  key: "你的RustDesk Key"
+  key: "你的密钥"
   personal: 1
 
 logger:
@@ -155,7 +155,7 @@ logger:
   report-caller: true
 ```
 
-> ⚠️ 请将 `你的服务器IP` 和 `你的RustDesk Key` 替换为实际值。Key 可在 RustDesk Server 的 `id_ed25519.pub` 文件中找到。
+> ⚠️ 请将 `你的服务器IP` 和 `你的密钥` 替换为实际值。Key 可在服务器的 `id_ed25519.pub` 文件中找到。
 
 #### 步骤 3：创建 Docker Compose 编排
 
@@ -378,10 +378,10 @@ cd release
 | `LUODA_API_MYSQL_PASSWORD` | MySQL 密码 | — |
 | `LUODA_API_MYSQL_ADDR` | MySQL 地址 | `192.168.1.66:3306` |
 | `LUODA_API_MYSQL_DBNAME` | MySQL 数据库名 | `luoda` |
-| `LUODA_API_LUODA_ID_SERVER` | RustDesk ID 服务器 | `192.168.1.66:21116` |
-| `LUODA_API_LUODA_RELAY_SERVER` | RustDesk Relay 服务器 | `192.168.1.66:21117` |
+| `LUODA_API_LUODA_ID_SERVER` | ID 服务器 | `192.168.1.66:21116` |
+| `LUODA_API_LUODA_RELAY_SERVER` | 中继服务器 | `192.168.1.66:21117` |
 | `LUODA_API_LUODA_API_SERVER` | 本 API 服务器地址 | `http://192.168.1.66:21114` |
-| `LUODA_API_LUODA_KEY` | RustDesk 密钥 | — |
+| `LUODA_API_LUODA_KEY` | 密钥 | — |
 | `LUODA_API_LUODA_KEY_FILE` | Key 文件路径 | `/data/id_ed25519.pub` |
 | `LUODA_API_LUODA_PERSONAL` | 启用个人版 API | `1` |
 | `LUODA_API_APP_REGISTER` | 开放注册 | `false` |
@@ -454,18 +454,18 @@ mysql:
 | 端口 | 协议 | 用途 |
 |------|------|------|
 | 21114 | TCP | LUODA API（本服务） |
-| 21115 | TCP | RustDesk NAT 类型测试 |
-| 21116 | TCP/UDP | RustDesk ID 服务 |
-| 21117 | TCP | RustDesk Relay 服务 |
-| 21118 | TCP | RustDesk WebSocket |
-| 21119 | TCP | RustDesk WebClient |
+| 21115 | TCP | NAT 类型测试 |
+| 21116 | TCP/UDP | ID 服务 |
+| 21117 | TCP | 中继服务 |
+| 21118 | TCP | WebSocket |
+| 21119 | TCP | WebClient |
 
 ---
 
 ## 鸣谢
 
-- 本项目基于开源 [RustDesk API](https://github.com/lejianwen/rustdesk-api) 进行深度定制
-- 感谢 [RustDesk](https://rustdesk.com) 团队提供优秀的远程桌面协议
+- 本项目完全独立开发
+- 
 - 感谢所有贡献者！
 
 <a href="https://github.com/luoda2023/luoda-api/graphs/contributors">
