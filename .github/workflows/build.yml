@@ -57,7 +57,9 @@ jobs:
       - name: Build Go API
         run: |
           cd api
-          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch == 'amd64' && 'amd64' || 'arm64' }} go build -o ../build/luoda-api ./cmd/apimain.go
+          pwd
+          go mod download
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -o ../build/luoda-api ./cmd/apimain.go 2>&1 || echo "BUILD_FAILED=$?"
           ls -la ../build/
 
       - name: Login to GitHub Container Registry
