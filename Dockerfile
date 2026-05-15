@@ -1,4 +1,4 @@
-FROM busybox:stable
+FROM alpine:latest
 
 ARG S6_OVERLAY_VERSION=3.2.0.0
 ARG S6_ARCH=x86_64
@@ -15,7 +15,7 @@ COPY build/hbbs build/hbbr build/luoda-utils /usr/bin/
 COPY build/luoda-api /usr/bin/
 
 LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-server"
-LABEL org.opencontainers.image.description="LUODA relay server + API (self-built from source)"
+LABEL org.opencontainers.image.description="LUODA Self-Hosted Remote Desktop Server and API"
 LABEL maintainer="LUODA"
 
 ENV RELAY=rev.dicad.cn

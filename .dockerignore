@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Source code (only need compiled binaries in build/)
+api/
+src/
+*.rs
+
+# Build artifacts from Rust
+target/
+
+# CI/CD
+.github/
+
+# Documentation
+README.md
+README_EN.md
+docs/
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker compose files
+docker-compose*.yaml
+docker-compose*.yml
+
+# Development files
+Dockerfile.dev
+docker-dev.sh
+build.bat
+build.sh
+
+# Development Dockerfiles
+api/Dockerfile
+api/Dockerfile.dev
+api/Dockerfile_full_s6
+api/docker-compose*.yaml
+
+# Data and logs
+data/
+*.log
+*.tmp
