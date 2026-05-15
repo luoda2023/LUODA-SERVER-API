@@ -4,6 +4,8 @@
 
 # Source code (only need compiled binaries in build/)
 api/
+!api/resources
+!api/conf
 src/
 *.rs
 
