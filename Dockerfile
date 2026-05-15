@@ -1,25 +1,34 @@
 FROM alpine:latest
 
-# Install required tools (ca-certificates needed for HTTPS downloads)
-RUN apk add --no-cache curl xz bash tzdata ca-certificates
+# Install runtime dependencies
+RUN apk add --no-cache bash tzdata ca-certificates
 
-# Install s6-overlay for process supervision
-ARG S6_OVERLAY_VERSION=3.2.0.0
-RUN curl -fsSL -o /tmp/s6-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" && \
-    curl -fsSL -o /tmp/s6-arch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz" && \
-    tar -C / -Jxpf /tmp/s6-noarch.tar.xz && \
-    tar -C / -Jxpf /tmp/s6-arch.tar.xz && \
-    rm -f /tmp/s6-*.tar.xz && \
-    ln -sf /run /var/run
-
-# Copy rootfs (s6 service definitions)
-COPY docker/rootfs/ /
+# Create /run symlink (some services expect /var/run)
+RUN ln -sf /run /var/run
 
 # Copy pre-built binaries
-COPY build/hbbs build/hbbr build/luoda-utils /usr/bin/
-COPY build/luoda-api /usr/bin/
+COPY build/hbbs /usr/bin/hbbs
+COPY build/hbbr /usr/bin/hbbr
+COPY build/luoda-utils /usr/bin/luoda-utils
+COPY build/luoda-api /usr/bin/luoda-api
+
+# Copy healthcheck
+COPY docker/rootfs/usr/bin/healthcheck.sh /usr/bin/healthcheck.sh
 
 RUN chmod +x /usr/bin/hbbs /usr/bin/hbbr /usr/bin/luoda-utils /usr/bin/luoda-api /usr/bin/healthcheck.sh
+
+# Create data volume
+VOLUME /data
+WORKDIR /data
+
+# Expose ports
+EXPOSE 21114 21115 21116 21116/udp 21117 21118 21119
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s CMD /usr/bin/healthcheck.sh
+
+# Simple entrypoint: start all services
+CMD ["/bin/sh", "-c", "hbbs -r $RELAY & hbbr -k _ & luoda-api & wait"]
 
 LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-SERVER-API"
 LABEL org.opencontainers.image.description="LUODA Self-Hosted Remote Desktop Server & API"
@@ -27,12 +36,3 @@ LABEL maintainer="LUODA"
 
 ENV RELAY=rev.dicad.cn
 ENV ENCRYPTED_ONLY=0
-
-EXPOSE 21114 21115 21116 21116/udp 21117 21118 21119
-
-HEALTHCHECK --interval=10s --timeout=5s CMD /usr/bin/healthcheck.sh
-
-WORKDIR /data
-VOLUME /data
-
-ENTRYPOINT ["/init"]
