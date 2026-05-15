@@ -1,20 +1,10 @@
-FROM alpine:latest
-
-ARG S6_OVERLAY_VERSION=3.2.0.0
-ARG S6_ARCH=x86_64
-
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp/
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz /tmp/
-RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
-    tar -C / -Jxpf /tmp/s6-overlay-${S6_ARCH}.tar.xz && \
-    rm /tmp/s6-overlay*.tar.xz && \
-    ln -s /run /var/run
+FROM just-containers/s6-overlay:latest
 
 COPY docker/rootfs/ /
 COPY build/hbbs build/hbbr build/luoda-utils /usr/bin/
 COPY build/luoda-api /usr/bin/
 
-LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-server"
+LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-SERVER-API"
 LABEL org.opencontainers.image.description="LUODA Self-Hosted Remote Desktop Server and API"
 LABEL maintainer="LUODA"
 

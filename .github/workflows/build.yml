@@ -21,9 +21,6 @@ jobs:
           - arch: amd64
             target: x86_64-unknown-linux-musl
             s6_arch: x86_64
-          - arch: arm64
-            target: aarch64-unknown-linux-musl
-            s6_arch: aarch64
 
     permissions:
       contents: read
@@ -76,8 +73,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch,suffix=-${{ matrix.arch }}
-            type=raw,value=latest-${{ matrix.arch }},enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -88,15 +85,15 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/${{ matrix.arch }}
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             S6_ARCH=${{ matrix.s6_arch }}
           provenance: false
 
-  # ─── 合并多架构 manifest ───
-  merge-manifest:
+  # ─── 最终镜像 tag ───
+  retag:
     needs: build-arch
     runs-on: ubuntu-latest
     permissions:
@@ -114,21 +111,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker metadata (final tags)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      - name: Create multi-arch manifests
+      - name: Create final tags (amd64 only)
         run: |
           set -ex
-          for TAG in $(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[]'); do
+          docker buildx imagetools create \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
             docker buildx imagetools create \
-              --tag "$TAG" \
-              "${TAG}-amd64" \
-              "${TAG}-arm64"
-          done
+              --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG_NAME}" \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          fi
