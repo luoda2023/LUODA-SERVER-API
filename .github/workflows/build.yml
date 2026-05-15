@@ -95,7 +95,6 @@ jobs:
           echo "--- Pushing ---"
           docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
           echo "=== DONE ==="
-          provenance: false
 
   # ─── 最终镜像 tag ───
   retag:
