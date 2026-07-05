@@ -1,5 +1,10 @@
-#!/bin/sh
+﻿#!/bin/sh
+set -e
 
-/package/admin/s6/command/s6-svstat /run/s6-rc/servicedirs/hbbr || exit 1
-/package/admin/s6/command/s6-svstat /run/s6-rc/servicedirs/hbbs || exit 1
-/package/admin/s6/command/s6-svstat /run/s6-rc/servicedirs/luoda-api || exit 1
+pidof hbbs >/dev/null
+pidof hbbr >/dev/null
+pidof luoda-api >/dev/null
+
+netstat -ltn 2>/dev/null | grep -q ':21114 '
+netstat -ltn 2>/dev/null | grep -q ':21116 '
+netstat -ltn 2>/dev/null | grep -q ':21117 '
