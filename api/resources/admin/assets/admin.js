@@ -18,6 +18,7 @@
     { key: "deviceGroups", title: "设备分组", icon: "folder" },
     { key: "tags", title: "标签管理", icon: "file" },
     { key: "audit", title: "审计日志", icon: "search" },
+    { key: "connRecords", title: "连接记录", icon: "transfer" },
     { key: "tokens", title: "登录令牌", icon: "transfer" },
     { key: "commands", title: "服务器指令", icon: "refresh" }
   ];
@@ -155,6 +156,7 @@
       if (page === "deviceGroups") await renderCrudList("设备分组", "folder", "/device_group", [{ k: "id", t: "ID" }, { k: "name", t: "名称" }], ["name"]);
       if (page === "tags") await renderCrudList("标签管理", "file", "/tag", [{ k: "id", t: "ID" }, { k: "name", t: "名称" }], ["name"]);
       if (page === "audit") await renderAudit();
+      if (page === "connRecords") await renderConnRecords();
       if (page === "tokens") await renderList("登录令牌", "transfer", "/user_token/list", tokenColumns());
       if (page === "commands") await renderCommands();
     } catch (err) {
@@ -236,8 +238,55 @@
     return `<span class="badge"><span class="ui-icon inline-icon" style="--icon: url(${icon(name)})"></span>${esc(os || "未知")}</span>`;
   }
   function peerToolbar() { return `<span class="badge ok">支持搜索与批量管理接口</span>`; }
-  function userToolbar() { return `<span class="badge ok">支持账号、权限和状态管理</span>`; }
+  function userToolbar() { return '<span class="badge ok">支持账号、权限和状态管理</span>'; }
+  function userFormToolbar() { return '<button class="secondary-btn" id="createUserBtn">新增用户</button>'; }
 
+  async function renderUserList() {
+    const data = await request("/user/list?page=1&page_size=100");
+    const list = normalizeList(data);
+    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/secure.svg)"></span>用户管理</div><div class="panel-actions">' + userToolbar() + '</div></div><div class="panel-body">' + table(userColumns().concat([{t:"操作", render:r=>'<div class="row-actions"><button class="secondary-btn" data-edit-user='' + esc(JSON.stringify(r)) + ''>编辑</button><button class="secondary-btn" data-pwd-user="' + r.id + '">改密</button><button class="danger-btn" data-del-user="' + r.id + '">删除</button></div>'}]), list) + '</div></div><div id="userForm"></div>';
+    document.querySelectorAll("[data-edit-user]").forEach(btn => btn.onclick = () => showUserForm("编辑用户", JSON.parse(btn.dataset.editUser)));
+    document.querySelectorAll("[data-pwd-user]").forEach(btn => btn.onclick = () => showPwdForm(btn.dataset.pwdUser));
+    document.querySelectorAll("[data-del-user]").forEach(btn => btn.onclick = async () => { if (confirm("确认删除用户？")) { await request("/user/delete", {method:"POST", body:JSON.stringify({id:Number(btn.dataset.delUser)})}); showNotice("已删除"); renderUserList(); } });
+    document.querySelectorAll("#createUserBtn").forEach(btn => btn.onclick = () => showUserForm("新增用户", {}));
+  }
+  function showUserForm(title, row) {
+    const isEdit = !!row.id;
+    document.getElementById("userForm").innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title">' + title + '</div></div><div class="panel-body"><form id="userFormInner" class="form-grid">' +
+      '<label>用户名<input name="username" value="' + esc(row.username || "") + '" required /></label>' +
+      '<label>昵称<input name="nickname" value="' + esc(row.nickname || "") + '" /></label>' +
+      '<label>邮箱<input name="email" type="email" value="' + esc(row.email || "") + '" /></label>' +
+      (isEdit ? '' : '<label>密码<input name="password" type="password" required /></label>') +
+      '<label>用户组ID<input name="group_id" type="number" value="' + (row.group_id || 1) + '" /></label>' +
+      '<label>管理员<select name="is_admin"><option value="true"' + (row.is_admin ? ' selected' : '') + '>是</option><option value="false"' + (!row.is_admin ? ' selected' : '') + '>否</option></select></label>' +
+      '<label>状态<select name="status"><option value="1"' + (row.status == 1 ? ' selected' : '') + '>启用</option><option value="0"' + (row.status == 0 ? ' selected' : '') + '>禁用</option></select></label>' +
+      (isEdit ? '<input type="hidden" name="id" value="' + row.id + '" />' : '') +
+      '<button class="primary-btn wide">保存</button></form></div></div>';
+    document.getElementById("userFormInner").onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const payload = {};
+      for (const [k, v] of fd.entries()) { if (v) payload[k] = v; }
+      payload.group_id = Number(payload.group_id || 1);
+      payload.is_admin = payload.is_admin === "true";
+      payload.status = Number(payload.status || 1);
+      if (isEdit) { await request("/user/update", {method:"POST", body:JSON.stringify(payload)}); }
+      else { await request("/user/create", {method:"POST", body:JSON.stringify(payload)}); }
+      showNotice("已保存"); renderUserList();
+    };
+  }
+  function showPwdForm(userId) {
+    document.getElementById("userForm").innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title">修改密码</div></div><div class="panel-body"><form id="pwdFormInner" class="form-grid">' +
+      '<input type="hidden" name="id" value="' + userId + '" />' +
+      '<label class="wide">新密码<input name="password" type="password" required minlength="4" maxlength="32" /></label>' +
+      '<button class="primary-btn wide">确认修改</button></form></div></div>';
+    document.getElementById("pwdFormInner").onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      await request("/user/changePwd", {method:"POST", body:JSON.stringify({id:Number(fd.get("id")), password:fd.get("password")})});
+      showNotice("密码已修改"); renderUserList();
+    };
+  }
   async function renderCrudList(title, iconName, base, columns, fields) {
     const data = await request(`${base}/list?page=1&page_size=100`);
     content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon(iconName)})"></span>${title}</div><button class="primary-btn" id="createBtn">新增</button></div><div class="panel-body">${table(columns.concat([{t:"操作", render:r=>`<div class="row-actions"><button class="secondary-btn" data-edit='${esc(JSON.stringify(r))}'>编辑</button><button class="danger-btn" data-del="${r.id}">删除</button></div>`}]), normalizeList(data))}</div></div><div id="crudForm"></div>`;
@@ -256,6 +305,19 @@
     $("#fileAudit").onclick = async () => $("#auditPanel").innerHTML = table([{k:"id",t:"ID"},{k:"peer_id",t:"设备"},{k:"path",t:"路径"},{k:"created_at",t:"时间",render:r=>fmtTime(r.created_at)}], normalizeList(await request("/audit_file/list?page=1&page_size=50")));
   }
 
+  async function renderConnRecords() {
+    const data = await request("/audit_conn/list?page=1&page_size=100");
+    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/transfer.svg)"></span>连接记录</div><div class="panel-actions"><span class="badge">A=发起端 B=被连接端</span></div></div><div class="panel-body">' + table([
+      {k:"from_name",t:"发起端(A)"},
+      {k:"from_peer",t:"A 设备ID"},
+      {k:"ip",t:"IP 地址"},
+      {k:"peer_id",t:"被连接端(B)"},
+      {k:"action",t:"操作",render:r=>{const v=String(r.action||"");return v==="new"?"<span class=\"badge ok\">建立</span>":v==="close"?"<span class=\"badge warn\">关闭</span>":"<span class=\"badge\">"+esc(v)+"</span>"}},
+      {k:"created_at",t:"开始时间",render:r=>fmtTime(r.created_at)},
+      {k:"close_time",t:"结束时间",render:r=>r.close_time?fmtTime(r.close_time):'<span class="badge ok">进行中</span>'},
+      {k:"session_id",t:"会话ID"}
+    ], normalizeList(data)) + '</div></div>';
+  }
   async function renderCommands() {
     const data = await request("/LUODA/cmdList").catch(() => null);
     content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("refresh")})"></span>服务器指令</div><span class="badge warn">谨慎执行</span></div><div class="panel-body">${table([{k:"id",t:"ID"},{k:"name",t:"名称"},{k:"cmd",t:"命令"},{k:"created_at",t:"创建时间",render:r=>fmtTime(r.created_at)}], normalizeList(data))}</div></div>`;
