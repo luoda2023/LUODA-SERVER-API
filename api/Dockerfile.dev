@@ -28,34 +28,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -ldflags "-s -w --extldflags '-static -fpic'" \
     -installsuffix cgo -o release/apimain cmd/apimain.go
 
-# Stage 2: Frontend Build Stage (builder2)
-FROM node:18-alpine AS builder-admin-frontend
-
-# Set working directory
-WORKDIR /frontend
-
-ARG COUNTRY
-# Install required tools without caching index to minimize image size
-RUN if [ "$COUNTRY" = "CN" ] ; then \
-        echo "It is in China, updating the repositories"; \
-        sed -i 's#https\?://dl-cdn.alpinelinux.org/alpine#https://mirrors.tuna.tsinghua.edu.cn/alpine#g' /etc/apk/repositories; \
-    fi && \
-    apk update && apk add --no-cache git
-
-ARG FREONTEND_GIT_REPO=https://github.com/luoda2023/luoda-api-web.git
-ARG FRONTEND_GIT_BRANCH=master
-# Clone the frontend repository
-
-RUN git clone -b $FRONTEND_GIT_BRANCH $FREONTEND_GIT_REPO .
-
-# Install required tools without caching index to minimize image size
-RUN if [ "$COUNTRY" = "CN" ] ; then \
-        echo "It is in China, updating NPM_CONFIG_REGISTRY"; \
-        export NPM_CONFIG_REGISTRY="https://mirrors.huaweicloud.com/repository/npm/"; \
-    fi && \
-    npm install && npm run build
-
-
 # Stage 2: Final Image
 FROM alpine:latest
 
@@ -76,8 +48,6 @@ COPY --from=builder-backend /app/release /app/
 COPY --from=builder-backend /app/conf /app/conf/
 COPY --from=builder-backend /app/resources /app/resources/
 COPY --from=builder-backend /app/docs /app/docs/
-# Copy frontend build from builder2 stage
-COPY --from=builder-admin-frontend /frontend/dist/ /app/resources/admin/
 
 # Ensure the binary is correctly built and linked
 RUN file /app/apimain && \
