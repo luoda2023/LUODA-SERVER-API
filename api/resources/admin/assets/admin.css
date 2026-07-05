@@ -125,3 +125,27 @@ td { color: #273449; font-size: 13px; }
 .panel-title .ui-icon { color: var(--brand); }
 .badge .ui-icon { width: 14px; height: 14px; flex-basis: 14px; }
 .nav-item img, .card-icon img { display: none; }
+
+/* extra compact sidebar menu */
+.dashboard-view { grid-template-columns: 236px 1fr; }
+.sidebar { padding: 12px 10px; gap: 8px; }
+.sidebar-brand { gap: 8px; font-size: 15px; }
+.sidebar-brand span { width: 28px; height: 28px; border-radius: 7px; font-size: 16px; }
+#nav { gap: 2px; padding-right: 0; }
+.nav-item {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  gap: 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+}
+.nav-item .ui-icon { width: 14px; height: 14px; flex-basis: 14px; }
+.ghost-btn { min-height: 30px; border-radius: 8px; }
+@media (max-width: 1100px) {
+  .dashboard-view { grid-template-columns: 64px 1fr; }
+  .sidebar { padding: 12px 8px; }
+  .nav-item { width: 40px; justify-content: center; padding: 0; }
+}
