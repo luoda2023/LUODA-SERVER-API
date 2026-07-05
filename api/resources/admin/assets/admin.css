@@ -97,3 +97,31 @@ td { color: #273449; font-size: 13px; }
 .card-icon { width: 34px; height: 34px; }
 .panel-body { padding: 14px; }
 
+
+/* icon and sidebar compact correction */
+.ui-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  flex: 0 0 16px;
+  background: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.inline-icon { width: 16px; height: 16px; vertical-align: -3px; }
+.nav-item {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 650;
+}
+#nav { gap: 4px; }
+.sidebar { padding: 16px 12px; gap: 12px; }
+.sidebar-brand { margin-bottom: 4px; }
+.card-icon .ui-icon { color: var(--brand); }
+.panel-title .ui-icon { color: var(--brand); }
+.badge .ui-icon { width: 14px; height: 14px; flex-basis: 14px; }
+.nav-item img, .card-icon img { display: none; }

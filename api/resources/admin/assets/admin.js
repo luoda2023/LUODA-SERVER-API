@@ -74,7 +74,7 @@
   function renderNav() {
     $("#nav").innerHTML = modules.map((item) => `
       <button class="nav-item ${state.page === item.key ? "active" : ""}" data-page="${item.key}">
-        <img src="${icon(item.icon)}" alt="" /><span>${item.title}</span>
+        <span class="ui-icon" style="--icon: url(${icon(item.icon)})"></span><span>${item.title}</span>
       </button>`).join("");
     document.querySelectorAll(".nav-item").forEach((btn) => btn.onclick = () => go(btn.dataset.page));
   }
@@ -177,27 +177,27 @@
         ${statCard("设备", peers?.total ?? peerList.length, "display")}
         ${statCard("用户", users?.total ?? userList.length, "home")}
       </div>
-      <div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon("file")}"/>关键配置</div></div>
+      <div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("file")})"></span>关键配置</div></div>
         <div class="panel-body"><div class="form-grid">
           ${infoField("API 地址", server.api_server)}${infoField("公钥 Key", server.key)}${infoField("WebClient", app.web_client === 1 ? "启用" : "关闭")}${infoField("分组数量", groupList.length)}
         </div></div></div>
-      <div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon("display")}"/>最近设备</div></div>${table(peerColumns().slice(0,5), peerList)}</div>`;
+      <div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("display")})"></span>最近设备</div></div>${table(peerColumns().slice(0,5), peerList)}</div>`;
   }
 
   function statCard(label, value, iconName) {
-    return `<div class="card"><div class="card-head"><span class="card-label">${esc(label)}</span><span class="card-icon"><img src="${icon(iconName)}" alt=""/></span></div><div class="card-value">${esc(value)}</div></div>`;
+    return `<div class="card"><div class="card-head"><span class="card-label">${esc(label)}</span><span class="card-icon"><span class="ui-icon" style="--icon: url(${icon(iconName)})"></span></span></div><div class="card-value">${esc(value)}</div></div>`;
   }
   function infoField(label, value) { return `<label>${esc(label)}<input readonly value="${esc(value || "-")}" /></label>`; }
 
   async function renderConfig() {
     const [server, app, admin] = await Promise.all([request("/config/server"), request("/config/app"), request("/config/admin")]);
     content().innerHTML = `
-      <div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon("secure_relay")}"/>中继服务器连接配置</div><button class="secondary-btn" id="copyConfig">复制客户端配置</button></div>
+      <div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("secure_relay")})"></span>中继服务器连接配置</div><button class="secondary-btn" id="copyConfig">复制客户端配置</button></div>
         <div class="panel-body"><div class="form-grid">
           ${infoField("ID Server", server.id_server)}${infoField("Relay Server", server.relay_server)}${infoField("API Server", server.api_server)}${infoField("WebClient", app.web_client === 1 ? "启用" : "关闭")}
           <label class="wide">客户端 Key<textarea readonly>${esc(server.key || "")}</textarea></label>
         </div></div></div>
-      <div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon("secure")}"/>密钥保护说明</div></div>
+      <div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("secure")})"></span>密钥保护说明</div></div>
         <div class="panel-body"><div class="code-box">必须保持 /data/id_ed25519 与 /data/id_ed25519.pub 不变。当前客户端公钥应与 server-keys/id_ed25519.pub 说明一致，避免原有客户端出现 KEY 不匹配。</div></div></div>`;
     $("#copyConfig").onclick = async () => {
       await navigator.clipboard.writeText(`ID Server: ${server.id_server}\nRelay Server: ${server.relay_server}\nAPI Server: ${server.api_server}\nKey: ${server.key}`);
@@ -207,7 +207,7 @@
 
   async function renderList(title, iconName, path, columns, toolbar) {
     const panelId = `panel-${Date.now()}`;
-    content().innerHTML = `<div class="panel" id="${panelId}"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon(iconName)}"/>${title}</div><div class="panel-actions"></div></div><div class="panel-body"><div class="empty">加载中...</div></div></div>`;
+    content().innerHTML = `<div class="panel" id="${panelId}"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon(iconName)})"></span>${title}</div><div class="panel-actions"></div></div><div class="panel-body"><div class="empty">加载中...</div></div></div>`;
     const panel = $("#" + panelId);
     if (toolbar) panel.querySelector(".panel-actions").innerHTML = toolbar();
     const query = new URLSearchParams({ page: "1", page_size: "50" });
@@ -233,14 +233,14 @@
   function osBadge(os) {
     const key = String(os || "").toLowerCase();
     const name = key.includes("win") ? "win" : key.includes("linux") ? "linux" : key.includes("mac") ? "mac" : key.includes("android") ? "android" : "display";
-    return `<span class="badge"><img class="inline-icon" src="${icon(name)}"/>${esc(os || "未知")}</span>`;
+    return `<span class="badge"><span class="ui-icon inline-icon" style="--icon: url(${icon(name)})"></span>${esc(os || "未知")}</span>`;
   }
   function peerToolbar() { return `<span class="badge ok">支持搜索与批量管理接口</span>`; }
   function userToolbar() { return `<span class="badge ok">支持账号、权限和状态管理</span>`; }
 
   async function renderCrudList(title, iconName, base, columns, fields) {
     const data = await request(`${base}/list?page=1&page_size=100`);
-    content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon(iconName)}"/>${title}</div><button class="primary-btn" id="createBtn">新增</button></div><div class="panel-body">${table(columns.concat([{t:"操作", render:r=>`<div class="row-actions"><button class="secondary-btn" data-edit='${esc(JSON.stringify(r))}'>编辑</button><button class="danger-btn" data-del="${r.id}">删除</button></div>`}]), normalizeList(data))}</div></div><div id="crudForm"></div>`;
+    content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon(iconName)})"></span>${title}</div><button class="primary-btn" id="createBtn">新增</button></div><div class="panel-body">${table(columns.concat([{t:"操作", render:r=>`<div class="row-actions"><button class="secondary-btn" data-edit='${esc(JSON.stringify(r))}'>编辑</button><button class="danger-btn" data-del="${r.id}">删除</button></div>`}]), normalizeList(data))}</div></div><div id="crudForm"></div>`;
     $("#createBtn").onclick = () => showCrudForm(title, base, fields, {});
     document.querySelectorAll("[data-edit]").forEach(btn => btn.onclick = () => showCrudForm(title, base, fields, JSON.parse(btn.dataset.edit)));
     document.querySelectorAll("[data-del]").forEach(btn => btn.onclick = async () => { if (confirm("确认删除？")) { await request(`${base}/delete`, {method:"POST", body: JSON.stringify({id:Number(btn.dataset.del)})}); showNotice("已删除"); go(state.page, true); } });
@@ -258,7 +258,7 @@
 
   async function renderCommands() {
     const data = await request("/LUODA/cmdList").catch(() => null);
-    content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><img class="inline-icon" src="${icon("refresh")}"/>服务器指令</div><span class="badge warn">谨慎执行</span></div><div class="panel-body">${table([{k:"id",t:"ID"},{k:"name",t:"名称"},{k:"cmd",t:"命令"},{k:"created_at",t:"创建时间",render:r=>fmtTime(r.created_at)}], normalizeList(data))}</div></div>`;
+    content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("refresh")})"></span>服务器指令</div><span class="badge warn">谨慎执行</span></div><div class="panel-body">${table([{k:"id",t:"ID"},{k:"name",t:"名称"},{k:"cmd",t:"命令"},{k:"created_at",t:"创建时间",render:r=>fmtTime(r.created_at)}], normalizeList(data))}</div></div>`;
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -268,4 +268,5 @@
     if (state.token) { setView(true); await bootDashboard(); } else { setView(false); }
   });
 })();
+
 
