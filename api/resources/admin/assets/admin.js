@@ -151,7 +151,7 @@
       if (page === "overview") await renderOverview(force);
       if (page === "config") await renderConfig(force);
       if (page === "peers") await renderList("设备管理", "display", "/peer/list", peerColumns(), peerToolbar);
-      if (page === "users") await renderList("用户管理", "secure", "/user/list", userColumns(), userToolbar);
+      if (page === "users") await renderUserList();
       if (page === "groups") await renderCrudList("用户分组", "folder", "/group", [{ k: "id", t: "ID" }, { k: "name", t: "名称" }, { k: "type", t: "类型" }], ["name", "type"]);
       if (page === "deviceGroups") await renderCrudList("设备分组", "folder", "/device_group", [{ k: "id", t: "ID" }, { k: "name", t: "名称" }], ["name"]);
       if (page === "tags") await renderCrudList("标签管理", "file", "/tag", [{ k: "id", t: "ID" }, { k: "name", t: "名称" }], ["name"]);
@@ -244,7 +244,7 @@
   async function renderUserList() {
     const data = await request("/user/list?page=1&page_size=100");
     const list = normalizeList(data);
-    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/secure.svg)"></span>用户管理</div><div class="panel-actions">' + userToolbar() + '</div></div><div class="panel-body">' + table(userColumns().concat([{t:"操作", render:r=>'<div class="row-actions"><button class="secondary-btn" data-edit-user='' + esc(JSON.stringify(r)) + ''>编辑</button><button class="secondary-btn" data-pwd-user="' + r.id + '">改密</button><button class="danger-btn" data-del-user="' + r.id + '">删除</button></div>'}]), list) + '</div></div><div id="userForm"></div>';
+    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/secure.svg)"></span>用户管理</div><div class="panel-actions">' + userFormToolbar() + '</div></div><div class="panel-body">' + table(userColumns().concat([{t:"操作", render:r=>'<div class="row-actions"><button class="secondary-btn" data-edit-user='' + esc(JSON.stringify(r)) + ''>编辑</button><button class="secondary-btn" data-pwd-user="' + r.id + '">改密</button><button class="danger-btn" data-del-user="' + r.id + '">删除</button></div>'}]), list) + '</div></div><div id="userForm"></div>';
     document.querySelectorAll("[data-edit-user]").forEach(btn => btn.onclick = () => showUserForm("编辑用户", JSON.parse(btn.dataset.editUser)));
     document.querySelectorAll("[data-pwd-user]").forEach(btn => btn.onclick = () => showPwdForm(btn.dataset.pwdUser));
     document.querySelectorAll("[data-del-user]").forEach(btn => btn.onclick = async () => { if (confirm("确认删除用户？")) { await request("/user/delete", {method:"POST", body:JSON.stringify({id:Number(btn.dataset.delUser)})}); showNotice("已删除"); renderUserList(); } });
@@ -330,5 +330,3 @@
     if (state.token) { setView(true); await bootDashboard(); } else { setView(false); }
   });
 })();
-
-
