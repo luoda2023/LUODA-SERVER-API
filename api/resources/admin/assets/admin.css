@@ -58,7 +58,7 @@ button{cursor:pointer;border:0}
 .nav-item.active{color:#fff;background:rgba(59,130,246,.25)}
 
 .ui-icon{width:16px;height:16px;display:inline-block;flex:0 0 16px;background:currentColor;-webkit-mask:var(--icon) center/contain no-repeat;mask:var(--icon) center/contain no-repeat}
-.nav-item .ui-icon{width:16px;height:16px;flex-basis:16px}
+.nav-item .ui-icon{width:18px;height:18px;flex-basis:18px}
 
 /* Main */
 .main-panel{min-width:0;padding:18px 22px}
@@ -122,10 +122,12 @@ textarea{min-height:80px;resize:vertical}
 .sidebar-brand strong,.nav-item span:not(.ui-icon){display:none}
 .nav-item{justify-content:center;padding:0;gap:0;height:32px}
 .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
 @media(max-width:760px){
 .dashboard-view{display:block}
 .sidebar{position:static;height:auto;flex-direction:row;gap:4px;padding:8px;overflow-x:auto}
 #nav{flex-direction:row}
 .nav-item{width:auto;padding:0 8px;height:32px}
-.cards,.form-grid{grid-template-columns:1fr} } }
+.cards,.form-grid{grid-template-columns:1fr}
+}
