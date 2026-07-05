@@ -1,6 +1,6 @@
 ﻿(() => {
   const API = "/api/admin";
-  const icon = (name) => `assets/icons/${name}.svg`;
+  const icon = (name) => `/_admin/assets/icons/${name}.svg`;
   const state = {
     token: localStorage.getItem("luoda_admin_token") || "",
     user: JSON.parse(localStorage.getItem("luoda_admin_user") || "{}"),
@@ -268,3 +268,4 @@
     if (state.token) { setView(true); await bootDashboard(); } else { setView(false); }
   });
 })();
+
