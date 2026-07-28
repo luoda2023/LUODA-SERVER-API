@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const API = "/api/admin";
   const icon = (name) => `/_admin/assets/icons/${name}.svg`;
   const state = {
@@ -244,7 +244,7 @@
   async function renderUserList() {
     const data = await request("/user/list?page=1&page_size=100");
     const list = normalizeList(data);
-    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/secure.svg)"></span>用户管理</div><div class="panel-actions">' + userFormToolbar() + '</div></div><div class="panel-body">' + table(userColumns().concat([{t:"操作", render:r=>'<div class="row-actions"><button class="secondary-btn" data-edit-user='' + esc(JSON.stringify(r)) + ''>编辑</button><button class="secondary-btn" data-pwd-user="' + r.id + '">改密</button><button class="danger-btn" data-del-user="' + r.id + '">删除</button></div>'}]), list) + '</div></div><div id="userForm"></div>';
+    content().innerHTML = '<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(/_admin/assets/icons/secure.svg)"></span>用户管理</div><div class="panel-actions">' + userFormToolbar() + '</div></div><div class="panel-body">' + table(userColumns().concat([{t:"操作", render:r=>'<div class="row-actions"><button class="secondary-btn" data-edit-user=' + esc(JSON.stringify(r)) + '>编辑</button><button class="secondary-btn" data-pwd-user="' + r.id + '">改密</button><button class="danger-btn" data-del-user="' + r.id + '">删除</button></div>'}]), list) + '</div></div><div id="userForm"></div>';
     document.querySelectorAll("[data-edit-user]").forEach(btn => btn.onclick = () => showUserForm("编辑用户", JSON.parse(btn.dataset.editUser)));
     document.querySelectorAll("[data-pwd-user]").forEach(btn => btn.onclick = () => showPwdForm(btn.dataset.pwdUser));
     document.querySelectorAll("[data-del-user]").forEach(btn => btn.onclick = async () => { if (confirm("确认删除用户？")) { await request("/user/delete", {method:"POST", body:JSON.stringify({id:Number(btn.dataset.delUser)})}); showNotice("已删除"); renderUserList(); } });
@@ -327,6 +327,14 @@
     $("#loginForm").onsubmit = login;
     $("#captchaImage").onclick = loadCaptcha;
     await loadBoot();
+    if (state.token) {
+      try { await request("/config/server"); } catch (_) {
+        localStorage.removeItem("luoda_admin_token");
+        localStorage.removeItem("luoda_admin_user");
+        state.token = "";
+      }
+    }
     if (state.token) { setView(true); await bootDashboard(); } else { setView(false); }
   });
 })();
+

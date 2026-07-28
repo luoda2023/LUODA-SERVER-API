@@ -13,6 +13,16 @@ import (
 type Audit struct {
 }
 
+type AuditConnPayload struct {
+	*model.AuditConn
+	ToName string `json:"to_name"`
+	ToIp   string `json:"to_ip"`
+}
+
+type AuditConnListPayload struct {
+	List []*AuditConnPayload `json:"list"`
+	model.Pagination
+}
 // ConnList 列表
 // @Tags 链接日志
 // @Summary 链接日志列表
@@ -42,7 +52,27 @@ func (a *Audit) ConnList(c *gin.Context) {
 		}
 		tx.Order("id desc")
 	})
-	response.Success(c, res)
+	payload := &AuditConnListPayload{Pagination: res.Pagination}
+	peerCache := map[string]*model.Peer{}
+	for _, item := range res.AuditConns {
+		peer, ok := peerCache[item.PeerId]
+		if !ok {
+			peer = service.AllService.PeerService.FindById(item.PeerId)
+			peerCache[item.PeerId] = peer
+		}
+		toName := item.PeerId
+		toIp := ""
+		if peer != nil && peer.RowId > 0 {
+			if peer.Hostname != "" {
+				toName = peer.Hostname
+			} else if peer.Username != "" {
+				toName = peer.Username
+			}
+			toIp = peer.LastOnlineIp
+		}
+		payload.List = append(payload.List, &AuditConnPayload{AuditConn: item, ToName: toName, ToIp: toIp})
+	}
+	response.Success(c, payload)
 }
 
 // ConnDelete 删除
@@ -143,7 +173,6 @@ func (a *Audit) FileList(c *gin.Context) {
 	})
 	response.Success(c, res)
 }
-
 // FileDelete 删除
 // @Tags 文件日志
 // @Summary 文件日志删除
@@ -210,3 +239,5 @@ func (a *Audit) BatchFileDelete(c *gin.Context) {
 	response.Fail(c, 101, err.Error())
 	return
 }
+
+

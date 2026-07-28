@@ -557,7 +557,7 @@ impl RendezvousServer {
                     // TCP RegisterPeer: register the peer with its TCP address
                     // so other peers can punch/connect via TCP.
                     if !rp.id.is_empty() {
-                        log::trace!("TCP New peer registered: {:?} {:?}", &rp.id, &addr);
+                        log::info!("TCP New peer registered: {:?} {:?}", &rp.id, &addr);
                         self.update_addr_tcp(rp.id, addr, sink).await;
                         if self.inner.serial > rp.serial {
                             let mut msg_out = RendezvousMessage::new();
@@ -569,7 +569,11 @@ impl RendezvousServer {
                             Self::send_to_sink(sink, msg_out).await;
                         }
                     }
-                    return false;
+                    // Return true to keep the TCP connection alive so the peer
+                    // can receive PunchHole / RequestRelay messages later.
+                    // Returning false would break the loop and close the
+                    // connection immediately after registration.
+                    return true;
                 }
                 Some(rendezvous_message::Union::RegisterPk(_)) => {
                     let res = register_pk_response::Result::NOT_SUPPORT;
