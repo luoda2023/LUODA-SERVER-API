@@ -553,6 +553,24 @@ impl RendezvousServer {
                     msg_out.set_test_nat_response(res);
                     Self::send_to_sink(sink, msg_out).await;
                 }
+                Some(rendezvous_message::Union::RegisterPeer(rp)) => {
+                    // TCP RegisterPeer: register the peer with its TCP address
+                    // so other peers can punch/connect via TCP.
+                    if !rp.id.is_empty() {
+                        log::trace!("TCP New peer registered: {:?} {:?}", &rp.id, &addr);
+                        self.update_addr_tcp(rp.id, addr, sink).await;
+                        if self.inner.serial > rp.serial {
+                            let mut msg_out = RendezvousMessage::new();
+                            msg_out.set_configure_update(ConfigUpdate {
+                                serial: self.inner.serial,
+                                rendezvous_servers: (*self.rendezvous_servers).clone(),
+                                ..Default::default()
+                            });
+                            Self::send_to_sink(sink, msg_out).await;
+                        }
+                    }
+                    return false;
+                }
                 Some(rendezvous_message::Union::RegisterPk(_)) => {
                     let res = register_pk_response::Result::NOT_SUPPORT;
                     let mut msg_out = RendezvousMessage::new();
@@ -566,6 +584,39 @@ impl RendezvousServer {
             }
         }
         false
+    }
+
+    /// TCP variant of update_addr: registers a peer that connected via TCP
+    /// and sends RegisterPeerResponse back through the TCP sink.
+    /// Note: TCP path does not support RegisterPk (returns NOT_SUPPORT),
+    /// so we always return request_pk=false to let the client complete
+    /// registration without a key exchange handshake.
+    async fn update_addr_tcp(
+        &mut self,
+        id: String,
+        socket_addr: SocketAddr,
+        sink: &mut Option<Sink>,
+    ) {
+        if let Some(old) = self.pm.get_in_memory(&id).await {
+            let mut old = old.write().await;
+            old.socket_addr = socket_addr;
+            old.last_reg_time = Instant::now();
+            let ip = socket_addr.ip();
+            let ip_change = if old.socket_addr.port() != 0 {
+                ip != old.socket_addr.ip()
+            } else {
+                ip.to_string() != old.info.ip
+            } && !ip.is_loopback();
+            if ip_change {
+                log::info!("TCP IP change of {} to {}", id, socket_addr);
+            }
+        }
+        let mut msg_out = RendezvousMessage::new();
+        msg_out.set_register_peer_response(RegisterPeerResponse {
+            request_pk: false,
+            ..Default::default()
+        });
+        Self::send_to_sink(sink, msg_out).await;
     }
 
     #[inline]
