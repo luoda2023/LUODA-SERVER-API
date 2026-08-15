@@ -23,3 +23,5 @@ server-keys/id_ed25519
 *.zip
 server-keys/id_ed25519.pub
 server-keys/README.md
+.firecrawl/
+server-copy-*

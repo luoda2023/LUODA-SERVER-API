@@ -34,7 +34,7 @@ docker compose up -d
 - **Web 客户端**：`http://你的服务器IP:21114/`
 - **API 文档**：`http://你的服务器IP:21114/swagger/index.html`
 
-> 示例：`http://rev.dicad.cn:21114/_admin/`
+> 示例：`http://dotchat.dicad.cn:21114/_admin/`
 
 ## 客户端配置
 
@@ -42,9 +42,9 @@ docker compose up -d
 
 | 字段 | 值 |
 |------|-----|
-| ID 服务器 | `rev.dicad.cn` |
-| 中继服务器 | `rev.dicad.cn` |
-| API 服务器 | `http://rev.dicad.cn:21114` |
+| ID 服务器 | `dotchat.dicad.cn` |
+| 中继服务器 | `dotchat.dicad.cn` |
+| API 服务器 | `http://dotchat.dicad.cn:21114` |
 | Key | `data/id_ed25519.pub` 文件内容 |
 
 ## 目录结构
@@ -93,7 +93,7 @@ docker logs LUODA-hbbs 2>&1 | grep -i "admin"
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `RELAY` | `rev.dicad.cn` | 中继服务器地址 |
+| `RELAY` | `dotchat.dicad.cn` | 中继服务器地址 |
 | `ENCRYPTED_ONLY` | `0` | 仅加密连接（1=仅加密） |
 
 API 配置通过 `api/conf/config.yaml` 设置，或通过 Docker 卷挂载覆盖。

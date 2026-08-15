@@ -1,17 +1,17 @@
-﻿services:
+services:
   luoda-api:
     image: luoda2023/luoda-api
-    container_name: luoda-api
+    container_name: dotchat-api
     environment:
       - TZ=Asia/Shanghai
-      - LUODA_API_LUODA_ID_SERVER=192.168.1.66:21116
-      - LUODA_API_LUODA_RELAY_SERVER=192.168.1.66:21117
-      - LUODA_API_LUODA_API_SERVER=http://127.0.0.1:21114
-      - LUODA_API_LUODA_KEY=123456789
+      - LUODA_API_LUODA_ID_SERVER=dotchat.dicad.cn:23116
+      - LUODA_API_LUODA_RELAY_SERVER=dotchat.dicad.cn:23117
+      - LUODA_API_LUODA_API_SERVER=http://127.0.0.1:23114
+      - LUODA_API_LUODA_KEY=<DOTCHAT_PUB_KEY>
     ports:
-      - 21114:21114
+      - 23114:23114
     volumes:
-      - ./data/LUODA/api:/app/data # database
-      # - ./conf:/app/conf # config
-      # - ./resources:/app/resources # 静态资源
+      - ./data/LUODA/api:/app/data
+      - ./conf:/app/conf
+      - ./resources:/app/resources
     restart: unless-stopped

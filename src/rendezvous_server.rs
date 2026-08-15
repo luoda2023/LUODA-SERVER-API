@@ -3,7 +3,6 @@ use crate::peer::*;
 use hbb_common::{
     allow_err, bail,
     bytes::{Bytes, BytesMut},
-    bytes_codec::BytesCodec,
     config,
     futures::future::join_all,
     futures_util::{
@@ -25,13 +24,12 @@ use hbb_common::{
         sync::{mpsc, Mutex},
         time::{interval, Duration},
     },
-    tokio_util::codec::Framed,
     try_into_v4,
     udp::FramedSocket,
     AddrMangle, ResultType,
 };
 use ipnetwork::Ipv4Network;
-use sodiumoxide::crypto::sign;
+use sodiumoxide::crypto::{box_, sign};
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -47,11 +45,14 @@ enum Data {
     RelayServers(RelayServers),
 }
 
-const REG_TIMEOUT: i32 = 30_000;
-type TcpStreamSink = SplitSink<Framed<TcpStream, BytesCodec>, Bytes>;
+// ?????: keep presence tolerant of NAT/mobile heartbeat gaps.
+// A peer that contacted us within this window is considered online.
+const REG_TIMEOUT: i32 = 120_000;
 type WsSink = SplitSink<tokio_tungstenite::WebSocketStream<TcpStream>, tungstenite::Message>;
+type TcpPeerSender = mpsc::UnboundedSender<RendezvousMessage>;
+type TcpPeerSenders = Arc<Mutex<HashMap<SocketAddr, TcpPeerSender>>>;
 enum Sink {
-    TcpStream(TcpStreamSink),
+    TcpChannel(TcpPeerSender),
     Ws(WsSink),
 }
 type Sender = mpsc::UnboundedSender<Data>;
@@ -82,6 +83,7 @@ struct Inner {
 #[derive(Clone)]
 pub struct RendezvousServer {
     tcp_punch: Arc<Mutex<HashMap<SocketAddr, Sink>>>,
+    tcp_peers: TcpPeerSenders,
     pm: PeerMap,
     tx: Sender,
     relay_servers: Arc<RelayServers>,
@@ -129,6 +131,7 @@ impl RendezvousServer {
         };
         let mut rs = Self {
             tcp_punch: Arc::new(Mutex::new(HashMap::new())),
+            tcp_peers: Default::default(),
             pm,
             tx: tx.clone(),
             relay_servers: Default::default(),
@@ -251,7 +254,11 @@ impl RendezvousServer {
                 }
                 Some(data) = rx.recv() => {
                     match data {
-                        Data::Msg(msg, addr) => { allow_err!(socket.send(msg.as_ref(), addr).await); }
+                        Data::Msg(msg, addr) => {
+                            if let Err(msg) = queue_registered_tcp(&self.tcp_peers, addr, *msg).await {
+                                allow_err!(socket.send(&msg, addr).await);
+                            }
+                        }
                         Data::RelayServers0(rs) => { self.parse_relay_servers(&rs); }
                         Data::RelayServers(rs) => { self.relay_servers = Arc::new(rs); }
                     }
@@ -340,89 +347,9 @@ impl RendezvousServer {
                     }
                 }
                 Some(rendezvous_message::Union::RegisterPk(rk)) => {
-                    if rk.uuid.is_empty() || rk.pk.is_empty() {
-                        return Ok(());
+                    if let Some(result) = self.process_register_pk(rk, addr).await {
+                        send_rk_res(socket, addr, result).await?;
                     }
-                    let id = rk.id;
-                    let ip = addr.ip().to_string();
-                    if id.len() < 6 {
-                        return send_rk_res(socket, addr, UUID_MISMATCH).await;
-                    } else if !self.check_ip_blocker(&ip, &id).await {
-                        return send_rk_res(socket, addr, TOO_FREQUENT).await;
-                    }
-                    let peer = self.pm.get_or(&id).await;
-                    let (changed, ip_changed) = {
-                        let peer = peer.read().await;
-                        if peer.uuid.is_empty() {
-                            (true, false)
-                        } else {
-                            if peer.uuid == rk.uuid {
-                                if peer.info.ip != ip && peer.pk != rk.pk {
-                                    log::warn!(
-                                        "Peer {} ip/pk mismatch: {}/{:?} vs {}/{:?}",
-                                        id,
-                                        ip,
-                                        rk.pk,
-                                        peer.info.ip,
-                                        peer.pk,
-                                    );
-                                    drop(peer);
-                                    return send_rk_res(socket, addr, UUID_MISMATCH).await;
-                                }
-                            } else {
-                                log::warn!(
-                                    "Peer {} uuid mismatch: {:?} vs {:?}",
-                                    id,
-                                    rk.uuid,
-                                    peer.uuid
-                                );
-                                drop(peer);
-                                return send_rk_res(socket, addr, UUID_MISMATCH).await;
-                            }
-                            let ip_changed = peer.info.ip != ip;
-                            (
-                                peer.uuid != rk.uuid || peer.pk != rk.pk || ip_changed,
-                                ip_changed,
-                            )
-                        }
-                    };
-                    let mut req_pk = peer.read().await.reg_pk;
-                    if req_pk.1.elapsed().as_secs() > 6 {
-                        req_pk.0 = 0;
-                    } else if req_pk.0 > 2 {
-                        return send_rk_res(socket, addr, TOO_FREQUENT).await;
-                    }
-                    req_pk.0 += 1;
-                    req_pk.1 = Instant::now();
-                    peer.write().await.reg_pk = req_pk;
-                    if ip_changed {
-                        let mut lock = IP_CHANGES.lock().await;
-                        if let Some((tm, ips)) = lock.get_mut(&id) {
-                            if tm.elapsed().as_secs() > IP_CHANGE_DUR {
-                                *tm = Instant::now();
-                                ips.clear();
-                                ips.insert(ip.clone(), 1);
-                            } else if let Some(v) = ips.get_mut(&ip) {
-                                *v += 1;
-                            } else {
-                                ips.insert(ip.clone(), 1);
-                            }
-                        } else {
-                            lock.insert(
-                                id.clone(),
-                                (Instant::now(), HashMap::from([(ip.clone(), 1)])),
-                            );
-                        }
-                    }
-                    if changed {
-                        self.pm.update_pk(id, peer, addr, rk.uuid, rk.pk, ip).await;
-                    }
-                    let mut msg_out = RendezvousMessage::new();
-                    msg_out.set_register_pk_response(RegisterPkResponse {
-                        result: register_pk_response::Result::OK.into(),
-                        ..Default::default()
-                    });
-                    socket.send(&msg_out, addr).await?
                 }
                 Some(rendezvous_message::Union::PunchHoleRequest(ph)) => {
                     if self.pm.is_in_memory(&ph.id).await {
@@ -484,6 +411,7 @@ impl RendezvousServer {
         &mut self,
         bytes: &[u8],
         sink: &mut Option<Sink>,
+        registered_sender: &TcpPeerSender,
         addr: SocketAddr,
         key: &str,
         ws: bool,
@@ -559,6 +487,10 @@ impl RendezvousServer {
                     if !rp.id.is_empty() {
                         log::info!("TCP New peer registered: {:?} {:?}", &rp.id, &addr);
                         self.update_addr_tcp(rp.id, addr, sink).await;
+                        self.tcp_peers
+                            .lock()
+                            .await
+                            .insert(try_into_v4(addr), registered_sender.clone());
                         if self.inner.serial > rp.serial {
                             let mut msg_out = RendezvousMessage::new();
                             msg_out.set_configure_update(ConfigUpdate {
@@ -575,14 +507,16 @@ impl RendezvousServer {
                     // connection immediately after registration.
                     return true;
                 }
-                Some(rendezvous_message::Union::RegisterPk(_)) => {
-                    let res = register_pk_response::Result::NOT_SUPPORT;
-                    let mut msg_out = RendezvousMessage::new();
-                    msg_out.set_register_pk_response(RegisterPkResponse {
-                        result: res.into(),
-                        ..Default::default()
-                    });
-                    Self::send_to_sink(sink, msg_out).await;
+                Some(rendezvous_message::Union::RegisterPk(rk)) => {
+                    if let Some(result) = self.process_register_pk(rk, addr).await {
+                        let mut msg_out = RendezvousMessage::new();
+                        msg_out.set_register_pk_response(RegisterPkResponse {
+                            result: result.into(),
+                            ..Default::default()
+                        });
+                        Self::send_to_sink(sink, msg_out).await;
+                    }
+                    return true;
                 }
                 _ => {}
             }
@@ -592,35 +526,120 @@ impl RendezvousServer {
 
     /// TCP variant of update_addr: registers a peer that connected via TCP
     /// and sends RegisterPeerResponse back through the TCP sink.
-    /// Note: TCP path does not support RegisterPk (returns NOT_SUPPORT),
-    /// so we always return request_pk=false to let the client complete
-    /// registration without a key exchange handshake.
     async fn update_addr_tcp(
         &mut self,
         id: String,
         socket_addr: SocketAddr,
         sink: &mut Option<Sink>,
     ) {
-        if let Some(old) = self.pm.get_in_memory(&id).await {
-            let mut old = old.write().await;
-            old.socket_addr = socket_addr;
-            old.last_reg_time = Instant::now();
-            let ip = socket_addr.ip();
-            let ip_change = if old.socket_addr.port() != 0 {
-                ip != old.socket_addr.ip()
-            } else {
-                ip.to_string() != old.info.ip
-            } && !ip.is_loopback();
-            if ip_change {
-                log::info!("TCP IP change of {} to {}", id, socket_addr);
-            }
+        let peer = self.pm.get_or(&id).await;
+        let mut peer = peer.write().await;
+        let previous_addr = peer.socket_addr;
+        let previous_ip = peer.info.ip.clone();
+        peer.socket_addr = socket_addr;
+        peer.last_reg_time = Instant::now();
+        let ip = socket_addr.ip();
+        let ip_change = if previous_addr.port() != 0 {
+            ip != previous_addr.ip()
+        } else {
+            ip.to_string() != previous_ip
+        } && !ip.is_loopback();
+        if ip_change {
+            log::info!("TCP IP change of {} to {}", id, socket_addr);
         }
+        drop(peer);
         let mut msg_out = RendezvousMessage::new();
         msg_out.set_register_peer_response(RegisterPeerResponse {
             request_pk: false,
             ..Default::default()
         });
         Self::send_to_sink(sink, msg_out).await;
+    }
+
+    async fn process_register_pk(
+        &mut self,
+        rk: RegisterPk,
+        addr: SocketAddr,
+    ) -> Option<register_pk_response::Result> {
+        if rk.uuid.is_empty() || rk.pk.is_empty() {
+            return None;
+        }
+        let id = rk.id;
+        let ip = addr.ip().to_string();
+        if id.len() < 6 {
+            return Some(UUID_MISMATCH);
+        }
+        if !self.check_ip_blocker(&ip, &id).await {
+            return Some(TOO_FREQUENT);
+        }
+        let peer = self.pm.get_or(&id).await;
+        let (changed, ip_changed) = {
+            let peer = peer.read().await;
+            if peer.uuid.is_empty() {
+                (true, false)
+            } else {
+                if peer.uuid == rk.uuid {
+                    if peer.info.ip != ip && peer.pk != rk.pk {
+                        log::warn!(
+                            "Peer {} ip/pk mismatch: {}/{:?} vs {}/{:?}",
+                            id,
+                            ip,
+                            rk.pk,
+                            peer.info.ip,
+                            peer.pk,
+                        );
+                        return Some(UUID_MISMATCH);
+                    }
+                } else {
+                    log::warn!(
+                        "Peer {} uuid mismatch: {:?} vs {:?}",
+                        id,
+                        rk.uuid,
+                        peer.uuid
+                    );
+                    return Some(UUID_MISMATCH);
+                }
+                let ip_changed = peer.info.ip != ip;
+                (
+                    peer.uuid != rk.uuid || peer.pk != rk.pk || ip_changed,
+                    ip_changed,
+                )
+            }
+        };
+        let mut req_pk = peer.read().await.reg_pk;
+        if req_pk.1.elapsed().as_secs() > 6 {
+            req_pk.0 = 0;
+        } else if req_pk.0 > 2 {
+            return Some(TOO_FREQUENT);
+        }
+        req_pk.0 += 1;
+        req_pk.1 = Instant::now();
+        peer.write().await.reg_pk = req_pk;
+        if ip_changed {
+            let mut lock = IP_CHANGES.lock().await;
+            if let Some((tm, ips)) = lock.get_mut(&id) {
+                if tm.elapsed().as_secs() > IP_CHANGE_DUR {
+                    *tm = Instant::now();
+                    ips.clear();
+                    ips.insert(ip.clone(), 1);
+                } else if let Some(v) = ips.get_mut(&ip) {
+                    *v += 1;
+                } else {
+                    ips.insert(ip.clone(), 1);
+                }
+            } else {
+                lock.insert(
+                    id.clone(),
+                    (Instant::now(), HashMap::from([(ip.clone(), 1)])),
+                );
+            }
+        }
+        let result = if changed {
+            self.pm.update_pk(id, peer, addr, rk.uuid, rk.pk, ip).await
+        } else {
+            register_pk_response::Result::OK
+        };
+        Some(result)
     }
 
     #[inline]
@@ -639,10 +658,9 @@ impl RendezvousServer {
                 ip.to_string() != old.info.ip
             } && !ip.is_loopback();
             let request_pk = old.pk.is_empty() || ip_change;
-            if !request_pk {
-                old.socket_addr = socket_addr;
-                old.last_reg_time = Instant::now();
-            }
+            // Keep the peer online as soon as it reaches us, without waiting for RegisterPk.
+            old.socket_addr = socket_addr;
+            old.last_reg_time = Instant::now();
             let ip_change = if ip_change && old.reg_pk.0 <= 2 {
                 Some(if old.socket_addr.port() == 0 {
                     old.info.ip.clone()
@@ -654,6 +672,15 @@ impl RendezvousServer {
             };
             (request_pk, ip_change)
         } else {
+            // First RegisterPeer for this id: mark it online right away;
+            // the client follows up with RegisterPk to persist key/identity.
+            let peer = self.pm.get_or(&id).await;
+            {
+                let mut w = peer.write().await;
+                w.socket_addr = socket_addr;
+                w.last_reg_time = Instant::now();
+                w.info.ip = socket_addr.ip().to_string();
+            }
             (true, None)
         };
         if let Some(old) = ip_change {
@@ -695,8 +722,12 @@ impl RendezvousServer {
         msg_out.set_punch_hole_response(p);
         if let Some(socket) = socket {
             socket.send(&msg_out, addr_a).await?;
-        } else {
-            self.send_to_tcp(msg_out, addr_a).await;
+        } else if !self.send_to_tcp(msg_out.clone(), addr_a).await {
+            // The punched peer is TCP-registered while the initiator may be
+            // UDP-only. Route through the UDP socket so the response is not
+            // lost when no parked TCP sink exists for addr_a.
+            log::debug!("Punch response to {} via UDP fallback", addr_a);
+            self.tx.send(Data::Msg(msg_out.into(), addr_a))?;
         }
         Ok(())
     }
@@ -727,8 +758,9 @@ impl RendezvousServer {
         msg_out.set_punch_hole_response(p);
         if let Some(socket) = socket {
             socket.send(&msg_out, addr_a).await?;
-        } else {
-            self.send_to_tcp(msg_out, addr_a).await;
+        } else if !self.send_to_tcp(msg_out.clone(), addr_a).await {
+            log::debug!("Local addr response to {} via UDP fallback", addr_a);
+            self.tx.send(Data::Msg(msg_out.into(), addr_a))?;
         }
         Ok(())
     }
@@ -848,8 +880,12 @@ impl RendezvousServer {
     async fn handle_online_request(
         &mut self,
         stream: &mut FramedStream,
+        addr: SocketAddr,
         peers: Vec<String>,
     ) -> ResultType<()> {
+        if !peers.is_empty() {
+            log::info!("OnlineRequest from {:?} for {:?}", addr, peers);
+        }
         let mut states = BytesMut::zeroed((peers.len() + 7) / 8);
         for (i, peer_id) in peers.iter().enumerate() {
             if let Some(peer) = self.pm.get_in_memory(peer_id).await {
@@ -874,24 +910,30 @@ impl RendezvousServer {
     }
 
     #[inline]
-    async fn send_to_tcp(&mut self, msg: RendezvousMessage, addr: SocketAddr) {
+    async fn send_to_tcp(&mut self, msg: RendezvousMessage, addr: SocketAddr) -> bool {
         let mut tcp = self.tcp_punch.lock().await.remove(&try_into_v4(addr));
+        if tcp.is_none() {
+            return false;
+        }
         tokio::spawn(async move {
             Self::send_to_sink(&mut tcp, msg).await;
         });
+        true
     }
 
     #[inline]
     async fn send_to_sink(sink: &mut Option<Sink>, msg: RendezvousMessage) {
         if let Some(sink) = sink.as_mut() {
+            if let Sink::TcpChannel(sender) = sink {
+                allow_err!(sender.send(msg));
+                return;
+            }
             if let Ok(bytes) = msg.write_to_bytes() {
                 match sink {
-                    Sink::TcpStream(s) => {
-                        allow_err!(s.send(Bytes::from(bytes)).await);
-                    }
                     Sink::Ws(ws) => {
                         allow_err!(ws.send(tungstenite::Message::Binary(bytes)).await);
                     }
+                    Sink::TcpChannel(_) => unreachable!(),
                 }
             }
         }
@@ -1185,7 +1227,7 @@ impl RendezvousServer {
                             stream.send(&msg_out).await.ok();
                         }
                         Some(rendezvous_message::Union::OnlineRequest(or)) => {
-                            allow_err!(rs.handle_online_request(&mut stream, or.peers).await);
+                            allow_err!(rs.handle_online_request(&mut stream, addr, or.peers).await);
                         }
                         _ => {}
                     }
@@ -1212,6 +1254,7 @@ impl RendezvousServer {
         ws: bool,
     ) -> ResultType<()> {
         let mut sink;
+        let (registered_sender, mut registered_messages) = mpsc::unbounded_channel();
         if ws {
             use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
             let callback = |req: &Request, response: Response| {
@@ -1232,22 +1275,110 @@ impl RendezvousServer {
             let ws_stream = tokio_tungstenite::accept_hdr_async(stream, callback).await?;
             let (a, mut b) = ws_stream.split();
             sink = Some(Sink::Ws(a));
-            while let Ok(Some(Ok(msg))) = timeout(30_000, b.next()).await {
-                if let tungstenite::Message::Binary(bytes) = msg {
-                    if !self.handle_tcp(&bytes, &mut sink, addr, key, ws).await {
-                        break;
+            loop {
+                tokio::select! {
+                    incoming = timeout(30_000, b.next()) => {
+                        match incoming {
+                            Ok(Some(Ok(tungstenite::Message::Binary(bytes)))) => {
+                                if !self.handle_tcp(&bytes, &mut sink, &registered_sender, addr, key, ws).await {
+                                    break;
+                                }
+                            }
+                            Ok(Some(Ok(_))) => {}
+                            _ => break,
+                        }
+                    }
+                    message = registered_messages.recv() => {
+                        if let Some(message) = message {
+                            Self::send_to_sink(&mut sink, message).await;
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
         } else {
-            let (a, mut b) = Framed::new(stream, BytesCodec::new()).split();
-            sink = Some(Sink::TcpStream(a));
-            while let Ok(Some(Ok(bytes))) = timeout(30_000, b.next()).await {
-                if !self.handle_tcp(&bytes, &mut sink, addr, key, ws).await {
-                    break;
+            let mut framed = FramedStream::from(stream, addr);
+            // Clients send TCP hole-punch / relay coordination messages
+            // (PunchHoleRequest, PunchHoleSent, LocalAddr, RequestRelay,
+            // RelayResponse) over fresh plain TCP connections WITHOUT the key
+            // exchange, following the upstream RustDesk protocol. Send the
+            // key-exchange challenge first (normal clients expect it), then
+            // peek the first frame: raw punch/relay traffic is handled
+            // unencrypted, everything else must complete the key exchange.
+            let mut raw_first: Option<BytesMut> = None;
+            if self.inner.sk.is_some() {
+                let server_sk = self.inner.sk.as_ref().unwrap();
+                let (server_box_pk, server_box_sk) = box_::gen_keypair();
+                let mut request = RendezvousMessage::new();
+                request.set_key_exchange(KeyExchange {
+                    keys: vec![sign::sign(&server_box_pk.0, server_sk).into()],
+                    ..Default::default()
+                });
+                timeout(30_000, framed.send(&request)).await??;
+                if let Ok(Some(Ok(bytes))) = timeout(30_000, framed.next()).await {
+                    if let Ok(msg_in) = RendezvousMessage::parse_from_bytes(&bytes) {
+                        let is_raw = matches!(
+                            msg_in.union,
+                            Some(rendezvous_message::Union::PunchHoleRequest(_))
+                                | Some(rendezvous_message::Union::PunchHoleSent(_))
+                                | Some(rendezvous_message::Union::LocalAddr(_))
+                                | Some(rendezvous_message::Union::RequestRelay(_))
+                                | Some(rendezvous_message::Union::RelayResponse(_))
+                        );
+                        if is_raw {
+                            raw_first = Some(bytes);
+                            log::debug!("Raw punch/relay message from {:?} (no key exchange)", addr);
+                        } else {
+                            let Some(rendezvous_message::Union::KeyExchange(exchange)) = msg_in.union
+                            else {
+                                bail!("Invalid rendezvous key exchange response");
+                            };
+                            if exchange.keys.len() != 2 {
+                                bail!("Invalid rendezvous key exchange response length");
+                            }
+                            framed.set_key(hbb_common::tcp::Encrypt::decode(
+                                &exchange.keys[1],
+                                &exchange.keys[0],
+                                &server_box_sk,
+                            )?);
+                        }
+                    }
+                }
+            }
+            let mut stream = framed;
+            sink = Some(Sink::TcpChannel(registered_sender.clone()));
+            if let Some(first) = raw_first {
+                if !self
+                    .handle_tcp(&first, &mut sink, &registered_sender, addr, key, ws)
+                    .await
+                {
+                    return Ok(());
+                }
+            }
+            loop {
+                tokio::select! {
+                    incoming = timeout(30_000, stream.next()) => {
+                        match incoming {
+                            Ok(Some(Ok(bytes))) => {
+                                if !self.handle_tcp(&bytes, &mut sink, &registered_sender, addr, key, ws).await {
+                                    break;
+                                }
+                            }
+                            _ => break,
+                        }
+                    }
+                    message = registered_messages.recv() => {
+                        if let Some(message) = message {
+                            stream.send(&message).await?;
+                        } else {
+                            break;
+                        }
+                    }
                 }
             }
         }
+        self.tcp_peers.lock().await.remove(&try_into_v4(addr));
         if sink.is_none() {
             self.tcp_punch.lock().await.remove(&try_into_v4(addr));
         }
@@ -1324,6 +1455,187 @@ impl RendezvousServer {
             }
         }
         false
+    }
+}
+
+async fn secure_rendezvous_stream(
+    mut stream: FramedStream,
+    server_sk: Option<&sign::SecretKey>,
+) -> ResultType<FramedStream> {
+    let Some(server_sk) = server_sk else {
+        return Ok(stream);
+    };
+
+    let (server_box_pk, server_box_sk) = box_::gen_keypair();
+    let mut request = RendezvousMessage::new();
+    request.set_key_exchange(KeyExchange {
+        keys: vec![sign::sign(&server_box_pk.0, server_sk).into()],
+        ..Default::default()
+    });
+    timeout(30_000, stream.send(&request)).await??;
+
+    let Some(response) = timeout(30_000, stream.next()).await? else {
+        bail!("Failed to receive rendezvous key exchange response");
+    };
+    let response = RendezvousMessage::parse_from_bytes(&response?)?;
+    let Some(rendezvous_message::Union::KeyExchange(exchange)) = response.union else {
+        bail!("Invalid rendezvous key exchange response");
+    };
+    if exchange.keys.len() != 2 {
+        bail!("Invalid rendezvous key exchange response length");
+    }
+    stream.set_key(hbb_common::tcp::Encrypt::decode(
+        &exchange.keys[1],
+        &exchange.keys[0],
+        &server_box_sk,
+    )?);
+    Ok(stream)
+}
+
+async fn queue_registered_tcp(
+    peers: &TcpPeerSenders,
+    addr: SocketAddr,
+    message: RendezvousMessage,
+) -> Result<(), RendezvousMessage> {
+    let addr = try_into_v4(addr);
+    let sender = peers.lock().await.get(&addr).cloned();
+    if let Some(sender) = sender {
+        return sender.send(message).map_err(|err| err.0);
+    }
+    Err(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sodiumoxide::crypto::{box_, secretbox};
+
+    #[tokio::test]
+    async fn tcp_rendezvous_completes_encrypted_key_exchange() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listen_addr = listener.local_addr().unwrap();
+        let (sign_pk, sign_sk) = sign::gen_keypair();
+
+        let server = tokio::spawn(async move {
+            let (socket, peer_addr) = listener.accept().await.unwrap();
+            let mut stream = secure_rendezvous_stream(
+                FramedStream::from(socket, peer_addr),
+                Some(&sign_sk),
+            )
+            .await
+            .unwrap();
+            let bytes = stream.next_timeout(1_000).await.unwrap().unwrap();
+            RendezvousMessage::parse_from_bytes(&bytes).unwrap()
+        });
+
+        let mut client = FramedStream::new(listen_addr, None, 1_000)
+            .await
+            .unwrap();
+        let bytes = client.next_timeout(1_000).await.unwrap().unwrap();
+        let exchange = match RendezvousMessage::parse_from_bytes(&bytes)
+            .unwrap()
+            .union
+        {
+            Some(rendezvous_message::Union::KeyExchange(exchange)) => exchange,
+            _ => panic!("server must start the key exchange"),
+        };
+        let server_box_pk = sign::verify(&exchange.keys[0], &sign_pk).unwrap();
+        let server_box_pk = box_::PublicKey::from_slice(&server_box_pk).unwrap();
+        let (client_box_pk, client_box_sk) = box_::gen_keypair();
+        let key = secretbox::gen_key();
+        let sealed_key = box_::seal(
+            &key.0,
+            &box_::Nonce([0; box_::NONCEBYTES]),
+            &server_box_pk,
+            &client_box_sk,
+        );
+        let mut response = RendezvousMessage::new();
+        response.set_key_exchange(KeyExchange {
+            keys: vec![client_box_pk.0.to_vec().into(), sealed_key.into()],
+            ..Default::default()
+        });
+        client.send(&response).await.unwrap();
+        client.set_key(key);
+
+        let mut register = RendezvousMessage::new();
+        register.set_register_peer(RegisterPeer {
+            id: "423156".to_owned(),
+            ..Default::default()
+        });
+        client.send(&register).await.unwrap();
+
+        let received = server.await.unwrap();
+        assert!(matches!(
+            received.union,
+            Some(rendezvous_message::Union::RegisterPeer(peer)) if peer.id == "423156"
+        ));
+    }
+
+    #[tokio::test]
+    async fn tcp_register_pk_updates_peer_identity() {
+        std::env::set_var("DB_URL", "target/tcp-register-pk-test.sqlite");
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut server = RendezvousServer {
+            tcp_punch: Default::default(),
+            tcp_peers: Default::default(),
+            pm: PeerMap::new().await.unwrap(),
+            tx,
+            relay_servers: Default::default(),
+            relay_servers0: Default::default(),
+            rendezvous_servers: Default::default(),
+            inner: Arc::new(Inner {
+                serial: 0,
+                version: String::new(),
+                software_url: String::new(),
+                sk: None,
+                mask: None,
+                local_ip: String::new(),
+            }),
+        };
+        let peer_id = format!("tcp-pk-{}", std::process::id());
+        let uuid = Bytes::from_static(b"tcp-register-pk-uuid");
+        let pk = Bytes::from_static(b"tcp-register-pk-public-key");
+        let result = server
+            .process_register_pk(
+                RegisterPk {
+                    id: peer_id.clone(),
+                    uuid: uuid.clone(),
+                    pk: pk.clone(),
+                    ..Default::default()
+                },
+                "127.0.0.1:32001".parse().unwrap(),
+            )
+            .await;
+
+        assert_eq!(result, Some(register_pk_response::Result::OK));
+        let peer = server.pm.get(&peer_id).await.unwrap();
+        let peer = peer.read().await;
+        assert_eq!(peer.uuid, uuid);
+        assert_eq!(peer.pk, pk);
+    }
+
+    #[tokio::test]
+    async fn registered_tcp_peer_receives_rendezvous_message_on_its_stream() {
+        let peers: TcpPeerSenders = Default::default();
+        let addr: SocketAddr = "127.0.0.1:31001".parse().unwrap();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        peers.lock().await.insert(addr, tx);
+
+        let mut message = RendezvousMessage::new();
+        message.set_request_relay(RequestRelay {
+            id: "980966".to_owned(),
+            ..Default::default()
+        });
+
+        queue_registered_tcp(&peers, addr, message)
+            .await
+            .expect("registered TCP peer should be routable");
+
+        let delivered = rx.try_recv().expect("message should use the TCP stream");
+        assert!(matches!(
+            delivered.union,
+            Some(rendezvous_message::Union::RequestRelay(_))
+        ));
     }
 }
 
@@ -1424,3 +1736,6 @@ async fn create_tcp_listener(port: i32) -> ResultType<TcpListener> {
     log::debug!("listen on tcp {:?}", s.local_addr());
     Ok(s)
 }
+
+
+

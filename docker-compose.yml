@@ -1,28 +1,15 @@
 services:
-  hbbs:
-    container_name: LUODA-hbbs
+  server:
+    container_name: dotchat-server
     image: ghcr.io/luoda2023/luoda-server:latest
-    command: hbbs -r rev.dicad.cn
+    entrypoint: /entrypoint.sh
+    environment:
+      - HBBS_PORT=23116
+      - HBBR_PORT=23117
+      - API_ADDR=0.0.0.0:23114
+      - RELAY=dotchat.dicad.cn:23117
     volumes:
-      - ./data/id_ed25519:/root/id_ed25519:ro
-      - ./data/id_ed25519.pub:/root/id_ed25519.pub:ro
-      - ./data:/root
-    network_mode: "host"
-    restart: unless-stopped
-    ports:
-      - "21114:21114"
-      - "21115:21115"
-      - "21116:21116"
-      - "21116:21116/udp"
-      - "21117:21117"
-      - "21118:21118"
-      - "21119:21119"
-
-  hbbr:
-    container_name: LUODA-hbbr
-    image: ghcr.io/luoda2023/luoda-server:latest
-    command: hbbr
-    volumes:
-      - ./data:/root
+      - ./docker/entrypoint.sh:/entrypoint.sh:ro
+      - ./data:/data
     network_mode: "host"
     restart: unless-stopped

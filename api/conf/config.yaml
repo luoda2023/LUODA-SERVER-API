@@ -32,9 +32,9 @@ mysql:
   addr: ""
   dbname: ""
 luoda:
-  id-server: "127.0.0.1:21116"
-  relay-server: "127.0.0.1:21117"
-  api-server: "http://127.0.0.1:21114"
+  id-server: "dotchat.dicad.cn:23116"
+  relay-server: "dotchat.dicad.cn:23117"
+  api-server: "http://dotchat.dicad.cn:23114"
   key: ""
   key-file: "/data/id_ed25519.pub"
   personal: 1

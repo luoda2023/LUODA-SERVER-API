@@ -42,5 +42,5 @@ LABEL org.opencontainers.image.source="https://github.com/luoda2023/LUODA-SERVER
 LABEL org.opencontainers.image.description="LUODA Self-Hosted Remote Desktop Server & API"
 LABEL maintainer="LUODA"
 
-ENV RELAY=rev.dicad.cn
+ENV RELAY=dotchat.dicad.cn
 ENV ENCRYPTED_ONLY=0

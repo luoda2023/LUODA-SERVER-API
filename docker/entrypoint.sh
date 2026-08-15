@@ -1,6 +1,18 @@
 #!/bin/sh
 set -e
 
+# dotchat 独立端口部署支持：默认用标准端口，环境变量可覆盖
+#   HBBS_PORT    ID/rendezvous 端口 (默认 21116)
+#   HBBR_PORT    relay 端口        (默认 21117)
+#   API_ADDR     luoda-api 监听    (默认 0.0.0.0:21114)
+#   RELAY        relay 服务器地址  (默认 dotchat.dicad.cn:${HBBR_PORT})
+HBBS_PORT="${HBBS_PORT:-21116}"
+HBBR_PORT="${HBBR_PORT:-21117}"
+API_ADDR="${API_ADDR:-0.0.0.0:21114}"
+RELAY="${RELAY:-dotchat.dicad.cn:${HBBR_PORT}}"
+
+echo "[entrypoint] dotchat: hbbs_port=${HBBS_PORT} hbbr_port=${HBBR_PORT} api_addr=${API_ADDR} relay=${RELAY}"
+
 # Copy default resources if not present in /data
 if [ ! -d "/data/resources" ]; then
     echo "[entrypoint] Copying default resources to /data/resources..."
@@ -25,13 +37,21 @@ if [ -f "/data/id_ed25519" ] && [ -f "/data/id_ed25519.pub" ]; then
     cp -p /data/id_ed25519.pub /data/.id_ed25519.pub.preserve
 fi
 
+# Rewrite API listen address (luoda-api reads gin.api-addr from config.yaml)
+if [ -f "/data/conf/config.yaml" ]; then
+    # sed: replace `api-addr: "0.0.0.0:21114"` with the desired addr.
+    # Works for both quoted and unquoted values.
+    sed -i "s|^\(\s*api-addr:\s*\).*|\1\"${API_ADDR}\"|" /data/conf/config.yaml
+    echo "[entrypoint] api-addr set to ${API_ADDR}"
+fi
+
 echo "[entrypoint] Starting services..."
 
 # Start hbbs (ID/rendezvous server) in background
-hbbs -r ${RELAY:-rev.dicad.cn} &
+hbbs -p ${HBBS_PORT} -r ${RELAY} &
 
 # Start hbbr (relay server) in background
-hbbr -k _ &
+hbbr -p ${HBBR_PORT} -k _ &
 
 # Start luoda-api (Go API server) in background
 luoda-api &
