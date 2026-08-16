@@ -20,7 +20,8 @@
     { key: "audit", title: "审计日志", icon: "search" },
     { key: "connRecords", title: "连接记录", icon: "transfer" },
     { key: "tokens", title: "登录令牌", icon: "transfer" },
-    { key: "commands", title: "服务器指令", icon: "refresh" }
+    { key: "commands", title: "服务器指令", icon: "refresh" },
+    { key: "announcements", title: "系统通知", icon: "transfer" }
   ];
 
   const $ = (s) => document.querySelector(s);
@@ -159,6 +160,7 @@
       if (page === "connRecords") await renderConnRecords();
       if (page === "tokens") await renderList("登录令牌", "transfer", "/user_token/list", tokenColumns());
       if (page === "commands") await renderCommands();
+      if (page === "announcements") await renderAnnouncements();
     } catch (err) {
       content().innerHTML = `<div class="notice error">${esc(err.message)}</div>`;
     }
@@ -321,6 +323,54 @@
   async function renderCommands() {
     const data = await request("/LUODA/cmdList").catch(() => null);
     content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("refresh")})"></span>服务器指令</div><span class="badge warn">谨慎执行</span></div><div class="panel-body">${table([{k:"id",t:"ID"},{k:"name",t:"名称"},{k:"cmd",t:"命令"},{k:"created_at",t:"创建时间",render:r=>fmtTime(r.created_at)}], normalizeList(data))}</div></div>`;
+  }
+
+  async function renderAnnouncements() {
+    const data = await request("/announcement/list?page=1&page_size=50").catch(() => null);
+    const list = normalizeList(data);
+    content().innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title"><span class="ui-icon inline-icon" style="--icon: url(${icon("transfer")})"></span>系统通知</div><button class="primary-btn" id="annNewBtn">发布通知</button></div><div class="panel-body">${table([
+      { k: "id", t: "ID" },
+      { k: "title", t: "标题" },
+      { k: "level", t: "级别", render: r => Number(r.level) === 2 ? '<span class="badge danger">重要</span>' : '<span class="badge">普通</span>' },
+      { k: "pinned", t: "置顶", render: r => Number(r.pinned) === 1 ? '<span class="badge ok">是</span>' : '<span class="badge">否</span>' },
+      { k: "published", t: "状态", render: r => Number(r.published) === 1 ? '<span class="badge ok">已发布</span>' : '<span class="badge warn">草稿</span>' },
+      { k: "created_at", t: "创建时间", render: r => fmtTime(r.created_at) },
+      { k: "op", t: "操作", render: r => annActionBtns(r) }
+    ], list)}</div></div><div id="annForm"></div>`;
+    $("#annNewBtn").onclick = () => renderAnnForm(null);
+    document.querySelectorAll("[data-ann-edit]").forEach(btn => btn.onclick = () => renderAnnForm(JSON.parse(btn.dataset.annEdit)));
+    document.querySelectorAll("[data-ann-pub]").forEach(btn => btn.onclick = async () => {
+      await request("/announcement/update", { method: "POST", body: btn.dataset.annPub });
+      showNotice("已保存"); renderAnnouncements();
+    });
+    document.querySelectorAll("[data-ann-del]").forEach(btn => btn.onclick = async () => {
+      if (confirm("确认删除该通知？")) { await request("/announcement/delete", { method: "POST", body: JSON.stringify({ id: Number(btn.dataset.annDel) }) }); showNotice("已删除"); renderAnnouncements(); }
+    });
+  }
+
+  function annActionBtns(r) {
+    const pubData = Object.assign({}, r, { published: Number(r.published) === 1 ? 0 : 1 });
+    const pubLabel = Number(r.published) === 1 ? "下线" : "发布";
+    return `<div class="row-actions"><button class="secondary-btn" data-ann-edit='${esc(JSON.stringify(r))}'>编辑</button><button class="secondary-btn" data-ann-pub='${esc(JSON.stringify(pubData))}'>${pubLabel}</button><button class="danger-btn" data-ann-del="${r.id}">删除</button></div>`;
+  }
+
+  function renderAnnForm(item) {
+    const r = item || { id: 0, title: "", content: "", level: 1, pinned: 0, published: 0 };
+    $("#annForm").innerHTML = `<div class="panel"><div class="panel-header"><div class="panel-title">${r.id ? "编辑通知" : "发布通知"}</div></div><div class="panel-body"><div class="form-stack">
+      <label>标题<input id="annTitle" value="${esc(r.title)}" placeholder="通知标题" /></label>
+      <label>内容<textarea id="annContent" rows="4" placeholder="通知内容">${esc(r.content)}</textarea></label>
+      <label>级别<select id="annLevel"><option value="1"${Number(r.level) === 1 ? " selected" : ""}>普通</option><option value="2"${Number(r.level) === 2 ? " selected" : ""}>重要</option></select></label>
+      <label class="check-line"><input type="checkbox" id="annPinned" ${Number(r.pinned) === 1 ? "checked" : ""} /> 置顶显示</label>
+      <label class="check-line"><input type="checkbox" id="annPublished" ${Number(r.published) === 1 ? "checked" : ""} /> 立即发布</label>
+      <div class="row-actions"><button class="primary-btn" id="annSave">保存</button><button class="secondary-btn" id="annCancel">取消</button></div>
+    </div></div></div>`;
+    $("#annCancel").onclick = () => $("#annForm").innerHTML = "";
+    $("#annSave").onclick = async () => {
+      const body = { id: r.id, title: $("#annTitle").value.trim(), content: $("#annContent").value.trim(), level: Number($("#annLevel").value), pinned: $("#annPinned").checked ? 1 : 0, published: $("#annPublished").checked ? 1 : 0 };
+      if (!body.title) { showNotice("标题不能为空", true); return; }
+      if (r.id) { await request("/announcement/update", { method: "POST", body: JSON.stringify(body) }); } else { await request("/announcement/create", { method: "POST", body: JSON.stringify(body) }); }
+      showNotice("已保存"); renderAnnouncements();
+    };
   }
 
   document.addEventListener("DOMContentLoaded", async () => {

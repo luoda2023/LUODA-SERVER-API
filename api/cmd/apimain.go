@@ -187,7 +187,7 @@ func InitGlobal() {
 }
 
 func DatabaseAutoUpdate() {
-	version := 262
+	version := 263
 
 	db := global.DB
 
@@ -273,6 +273,7 @@ func Migrate(version uint) {
 		&model.AddressBookCollectionRule{},
 		&model.ServerCmd{},
 		&model.DeviceGroup{},
+		&model.Announcement{},
 	)
 	if err != nil {
 		global.Logger.Error("migrate err :=>", err)

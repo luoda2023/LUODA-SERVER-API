@@ -46,12 +46,22 @@ func Init(g *gin.Engine) {
 	//deprecated end
 
 	ShareRecordBind(adg)
+	AnnouncementBind(adg)
 	MyBind(adg)
 
 	LUODACmdBind(adg)
 	DeviceGroupBind(adg)
 	//访问静态文件
 	//g.StaticFS("/upload", http.Dir(global.Config.Gin.ResourcesPath+"/upload"))
+}
+
+func AnnouncementBind(rg *gin.RouterGroup) {
+	cont := &admin.Announcement{}
+	aR := rg.Group("/announcement").Use(middleware.AdminPrivilege())
+	aR.GET("/list", cont.List)
+	aR.POST("/create", cont.Create)
+	aR.POST("/update", cont.Update)
+	aR.POST("/delete", cont.Delete)
 }
 
 func LUODACmdBind(adg *gin.RouterGroup) {

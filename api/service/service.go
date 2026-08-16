@@ -22,6 +22,7 @@ type Service struct {
 	*AuditService
 	*ShareRecordService
 	*ServerCmdService
+	*AnnouncementService
 	*LdapService
 	*AppService
 }

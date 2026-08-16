@@ -62,6 +62,12 @@ func ApiInit(g *gin.Engine) {
 	}
 
 	{
+		an := &api.Announcement{}
+		// [method:GET] [uri:/api/announcements] 系统通知（公开）
+		frg.GET("/announcements", an.List)
+	}
+
+	{
 		au := &api.Audit{}
 		//[method:POST] [uri:/api/audit/conn]
 		frg.POST("/audit/conn", au.AuditConn)
