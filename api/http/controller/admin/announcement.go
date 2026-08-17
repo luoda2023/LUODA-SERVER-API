@@ -42,7 +42,16 @@ func (r *Announcement) Create(c *gin.Context) {
 }
 
 func (r *Announcement) Update(c *gin.Context) {
-	f := &model.Announcement{}
+	// 用指针字段区分“未传”（nil）与“传 0”，这样发布/取消发布
+	// （published 0/1）、置顶/取消置顶、改标题互不影响。
+	f := &struct {
+		model.IdModel
+		Title     string `json:"title"`
+		Content   string `json:"content"`
+		Level     int    `json:"level"`
+		Pinned    *int   `json:"pinned"`
+		Published *int   `json:"published"`
+	}{}
 	if err := c.ShouldBindJSON(f); err != nil {
 		response.Fail(c, 101, response.TranslateMsg(c, "ParamsError")+err.Error())
 		return
@@ -56,7 +65,31 @@ func (r *Announcement) Update(c *gin.Context) {
 		response.Fail(c, 101, response.TranslateMsg(c, "ItemNotFound"))
 		return
 	}
-	if err := service.AllService.AnnouncementService.Update(f); err != nil {
+	// 未传的字段合并自原记录，保证部分更新不丢内容。
+	if f.Title == "" {
+		f.Title = ex.Title
+	}
+	if f.Content == "" {
+		f.Content = ex.Content
+	}
+	if f.Level == 0 {
+		f.Level = ex.Level
+	}
+	merged := &model.Announcement{
+		IdModel:   model.IdModel{Id: f.Id},
+		Title:     f.Title,
+		Content:   f.Content,
+		Level:     f.Level,
+		Pinned:    ex.Pinned,
+		Published: ex.Published,
+	}
+	if f.Pinned != nil {
+		merged.Pinned = *f.Pinned
+	}
+	if f.Published != nil {
+		merged.Published = *f.Published
+	}
+	if err := service.AllService.AnnouncementService.Update(merged); err != nil {
 		response.Fail(c, 101, err.Error())
 		return
 	}

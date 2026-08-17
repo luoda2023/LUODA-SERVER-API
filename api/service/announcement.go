@@ -30,6 +30,8 @@ func (s *AnnouncementService) Create(u *model.Announcement) error {
 	return DB.Create(u).Error
 }
 
+// Update 全量更新：controller 已把缺失字段合并自原记录，因此
+// 发布/取消发布（published 0/1）、置顶、改标题、改内容都可生效。
 func (s *AnnouncementService) Update(u *model.Announcement) error {
 	return DB.Model(&model.Announcement{}).Where("id = ?", u.Id).Updates(map[string]interface{}{
 		"title":     u.Title,
